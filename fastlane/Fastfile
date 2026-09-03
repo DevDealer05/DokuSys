@@ -1,0 +1,75 @@
+# =============================================================================
+# Fastfile - Digitales Büro iOS Automation
+# =============================================================================
+
+default_platform(:ios)
+
+platform :ios do
+  before_all do
+    ensure_git_status_clean
+  end
+
+  desc "Run unit tests"
+  lane :test do
+    run_tests(
+      workspace: "DigitalesBuero.xcworkspace",
+      devices: ["iPhone 15 Pro"],
+      clean: true
+    )
+  end
+
+  desc "Build and upload new build to TestFlight"
+  lane :beta do
+    setup_ci if ENV['CI']
+    
+    # 1. Increment Build Number automatically
+    increment_build_number(
+      build_number: ENV['GITHUB_RUN_NUMBER'] || number_of_commits
+    )
+
+    # 2. Sync signing certificates
+    match(
+      type: "appstore",
+      readonly: is_ci,
+      app_identifier: "de.digitalesbuero.app"
+    )
+
+    # 3. Build .ipa package
+    build_app(
+      scheme: "DigitalesBuero",
+      clean: true,
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "DigitalesBuero.ipa"
+    )
+
+    # 4. Upload to Apple TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      changelog: "Automatisierter CI/CD Build via GitHub Actions."
+    )
+
+    # 5. Post slack/notification if webhook available
+    if ENV['SLACK_WEBHOOK_URL']
+      slack(
+        message: "🚀 Neuer TestFlight Build erfolgreich hochgeladen: ##{get_build_number}",
+        success: true
+      )
+    end
+  end
+
+  desc "Deploy to Apple App Store"
+  lane :release do
+    match(type: "appstore", readonly: true)
+    build_app(
+      scheme: "DigitalesBuero",
+      export_method: "app-store"
+    )
+    deliver(
+      force: true,
+      submit_for_review: false,
+      automatic_release: true
+    )
+  end
+end

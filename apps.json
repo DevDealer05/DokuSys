@@ -1,0 +1,22 @@
+{
+  "name": "Digitales Buero Updates",
+  "identifier": "de.kim.DigitalesBuero.repo",
+  "apps": [{
+    "name": "Digitales Buero",
+    "bundleIdentifier": "de.kim.DigitalesBuero",
+    "developerName": "Kim",
+    "subtitle": "Schulden und Haushalt Manager",
+    "version": "1.0",
+    "versionDate": "2026-09-03T00:24:39Z",
+    "versionDescription": "Commit 016940f - Auto-Build via GitHub Actions",
+    "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
+    "localizedDescription": "Digitales Buero - Haushalt, Schulden, Scanner und KI-Assistent.",
+    "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
+    "tintColor": "6E5BE8",
+    "size": 1112,
+    "permissions": [
+      {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"}
+    ]
+  }],
+  "news": []
+}

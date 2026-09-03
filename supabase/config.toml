@@ -1,0 +1,17 @@
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "https://ucmkbhmtdpbxsbahzahj.supabase.co"
+additional_redirect_urls = ["digitalesbuero://auth"]
+jwt_expiry = 3600
+enable_signup = true
+
+[functions.ai-agent]
+verify_jwt = false
