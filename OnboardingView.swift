@@ -190,8 +190,10 @@ struct PrimaryActionButtonStyle: ButtonStyle {
     }
 }
 
+#if DEBUG
 #Preview {
     OnboardingView()
         .environmentObject(UserSessionManager())
         .preferredColorScheme(.dark)
 }
+#endif

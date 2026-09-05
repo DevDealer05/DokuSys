@@ -369,7 +369,9 @@ struct MessageBubbleView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     AIChatView()
         .preferredColorScheme(.dark)
 }
+#endif

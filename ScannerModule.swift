@@ -1051,6 +1051,7 @@ struct ScannerCoordinatorView: View {
 // MARK: - Preview
 // =============================================================================
 
+#if DEBUG
 #Preview("TriageCardDeck – Demo") {
     // Synthetic pages with pre-baked OCR for the preview
     let demoPages: [ScannedPage] = {
@@ -1080,3 +1081,4 @@ struct ScannerCoordinatorView: View {
     }
     .preferredColorScheme(.dark)
 }
+#endif
