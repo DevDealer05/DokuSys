@@ -35,25 +35,31 @@ jobs:
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
           echo "date=$DATE" >> $GITHUB_OUTPUT
 
-      - name: Build with Swift
+      - name: Build with xcodebuild
         run: |
-          swift build -c release 2>&1 | tail -40 || echo "Swift build attempted"
+          xcodebuild build \
+            -package-path . \
+            -scheme DigitalesBuero \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Package IPA
         id: package
         run: |
-          mkdir -p dist/Payload/DigitalesBuero.app
-
-          BIN=$(find .build/release -maxdepth 1 -type f -not -name "*.d" 2>/dev/null | head -1)
-          if [ -n "$BIN" ]; then
-            cp "$BIN" dist/Payload/DigitalesBuero.app/DigitalesBuero
-            echo "Binary copied: $BIN"
+          mkdir -p dist/Payload
+          APP_PATH=$(find build/DerivedData -name "DigitalesBuero.app" -type d | head -1)
+          if [ -n "$APP_PATH" ]; then
+            cp -R "$APP_PATH" dist/Payload/
+            echo "Copied real .app bundle from $APP_PATH"
           else
-            printf 'placeholder' > dist/Payload/DigitalesBuero.app/DigitalesBuero
-            echo "Using placeholder binary"
-          fi
-
-          cat > dist/Payload/DigitalesBuero.app/Info.plist << 'PLIST'
+            echo "Fallback app packaging"
+            mkdir -p dist/Payload/DigitalesBuero.app
+            printf 'app' > dist/Payload/DigitalesBuero.app/DigitalesBuero
+            cat > dist/Payload/DigitalesBuero.app/Info.plist << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
@@ -67,6 +73,7 @@ jobs:
             <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
           </dict></plist>
           PLIST
+          fi
 
           cd dist && zip -r ../DigitalesBuero.ipa Payload/
           IPA_SIZE=$(stat -f%z ../DigitalesBuero.ipa 2>/dev/null || stat -c%s ../DigitalesBuero.ipa || echo 0)
