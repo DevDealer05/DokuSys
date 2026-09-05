@@ -536,44 +536,28 @@ enum PDFDocumentRenderer {
         let imageRenderer = ImageRenderer(content: template)
         imageRenderer.scale = 2.0   // retina quality
 
-        guard let pageImage = imageRenderer.uiImage,
-              let cgPage    = pageImage.cgImage else { return nil }
+        guard let pageImage = imageRenderer.uiImage else { return nil }
 
-        // 2. Build PDF with CGPDFContext for metadata + owner-password lock
-        let data = NSMutableData()
-        // CGContext(consumer:mediaBox:) requires an inout CGRect;
-        // use a local var so Swift can take its address legally.
-        var mediaBox = CGRect(origin: .zero, size: pageSize)
+        // 2. Build PDF using UIGraphicsPDFRenderer (respects UIKit top-left coordinate system)
+        let format = UIGraphicsPDFRendererFormat()
+        let ownerPwd = "owner-\(proposal.documentId.uuidString)"
+        format.documentInfo = [
+            kCGPDFContextTitle as String: "Ratenzahlungsantrag – \(proposal.fileNumber)",
+            kCGPDFContextAuthor as String: proposal.senderName,
+            kCGPDFContextCreator as String: "Digitales Büro App",
+            kCGPDFContextSubject as String: "Ratenzahlungsantrag AZ \(proposal.fileNumber)",
+            kCGPDFContextOwnerPassword as String: ownerPwd,
+            kCGPDFContextAllowsPrinting as String: true,
+            kCGPDFContextAllowsCopying as String: false
+        ]
 
-        guard let consumer = CGDataConsumer(data: data as CFMutableData),
-              let pdfCtx   = CGContext(
-                consumer: consumer,
-                mediaBox: &mediaBox,
-                pdfMetadata(for: proposal)
-              )
-        else { return nil }
+        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize), format: format)
+        let pdfData = renderer.pdfData { ctx in
+            ctx.beginPage()
+            pageImage.draw(in: CGRect(origin: .zero, size: pageSize))
+        }
 
-        // 3. Draw page
-        pdfCtx.beginPDFPage(nil)
-        pdfCtx.saveGState()
-
-        // Scale rendered image to fit A4
-        let scaleX = pageSize.width  / pageImage.size.width
-        let scaleY = pageSize.height / pageImage.size.height
-        pdfCtx.scaleBy(x: scaleX, y: scaleY)
-
-        // UIImage coordinate system is flipped vs. PDF
-        pdfCtx.translateBy(x: 0, y: pageImage.size.height)
-        pdfCtx.scaleBy(x: 1, y: -1)
-
-        pdfCtx.draw(cgPage, in: CGRect(origin: .zero, size: pageImage.size))
-
-        pdfCtx.restoreGState()
-        pdfCtx.endPDFPage()
-        pdfCtx.closePDF()
-
-        // 4. Verify with PDFKit and return
-        let pdfData = data as Data
+        // 3. Verify with PDFKit and return
         guard PDFDocument(data: pdfData) != nil else { return nil }
         return pdfData
     }
