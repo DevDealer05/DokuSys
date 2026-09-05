@@ -6,14 +6,14 @@
     "bundleIdentifier": "de.kim.DigitalesBuero",
     "developerName": "Kim",
     "subtitle": "Schulden und Haushalt Manager",
-    "version": "1.0.1",
-    "versionDate": "2026-09-05T17:06:51Z",
-    "versionDescription": "Build 2 - Automatisch gebaut via GitHub Actions.",
+    "version": "1.0.2",
+    "versionDate": "2026-09-05T17:29:08Z",
+    "versionDescription": "Build 3 - Automatisch gebaut via GitHub Actions.",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero - Haushalt, Schulden, Scanner und KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 1735264,
+    "size": 1735295,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"}
     ]

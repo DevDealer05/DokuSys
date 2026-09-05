@@ -13,13 +13,13 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>1.0.2</string>
     <key>GIT_COMMIT_SHA</key>
-    <string>d818f00</string>
+    <string>b94b5de</string>
     <key>BUILD_DATE</key>
-    <string>2026-09-05T17:05:58Z</string>
+    <string>2026-09-05T17:28:10Z</string>
     <key>MinimumOSVersion</key>
     <string>17.0</string>
     <key>UIRequiredDeviceCapabilities</key>
