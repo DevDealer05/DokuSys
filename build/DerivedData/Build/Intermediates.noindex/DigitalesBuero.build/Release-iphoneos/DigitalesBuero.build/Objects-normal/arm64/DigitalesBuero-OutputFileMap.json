@@ -1,0 +1,125 @@
+{
+  "" : {
+    "const-values" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.swiftconstvalues",
+    "dependencies" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.d",
+    "diagnostics" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.dia",
+    "emit-module-dependencies" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master-emit-module.dia",
+    "swift-dependencies" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.swiftdeps"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/AIChatModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AIChatModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AIChatModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AIChatModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/AuthService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AuthService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AuthService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AuthService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/DebtDetailView.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtDetailView.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtDetailView.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtDetailView.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/DebtEngineService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtEngineService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtEngineService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DebtEngineService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/DevModeModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DevModeModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DevModeModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DevModeModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/DigitalesBueroApp.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBueroApp.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBueroApp.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBueroApp.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/DocumentArchiveModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DocumentArchiveModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DocumentArchiveModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DocumentArchiveModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/ExportModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ExportModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ExportModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ExportModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/GeminiService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/GeminiService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/GeminiService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/GeminiService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/HardwareLogModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/HardwareLogModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/HardwareLogModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/HardwareLogModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/LiquidGlass.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LiquidGlass.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LiquidGlass.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LiquidGlass.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/LoginView.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LoginView.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LoginView.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/LoginView.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/NotificationService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/NotificationService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/NotificationService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/NotificationService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/OnboardingView.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/OnboardingView.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/OnboardingView.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/OnboardingView.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/RealtimeHouseholdService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RealtimeHouseholdService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RealtimeHouseholdService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RealtimeHouseholdService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/SampleDocumentGenerator.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SampleDocumentGenerator.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SampleDocumentGenerator.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SampleDocumentGenerator.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/ScannerModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ScannerModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ScannerModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/ScannerModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/SettingsModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SettingsModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SettingsModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SettingsModule.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/StorageService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/StorageService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/StorageService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/StorageService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/SubscriptionManager.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SubscriptionManager.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SubscriptionManager.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SubscriptionManager.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/SupabaseConfig.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SupabaseConfig.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SupabaseConfig.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SupabaseConfig.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/UserProfileService.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserProfileService.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserProfileService.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserProfileService.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/UserSessionManager.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.o"
+  }
+}

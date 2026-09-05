@@ -1080,6 +1080,7 @@ enum DebtCounselingExportService {
 // MARK: - Preview
 // =============================================================================
 
+#if DEBUG
 #Preview("Export Coordinator") {
     let proposal = InstallmentProposal(
         fileNumber:      "AZ-2024-00123",
@@ -1125,3 +1126,4 @@ enum DebtCounselingExportService {
             .frame(height: 842 * 0.5)
     }
 }
+#endif

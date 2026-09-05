@@ -1158,7 +1158,9 @@ public struct DocumentDetailView: View {
             Menu {
                 ForEach(DocumentStatus.allCases) { st in
                     Button {
-                        service.updateStatus(document.id, newStatus: st)
+                        Task { @MainActor in
+                            service.updateStatus(document.id, newStatus: st)
+                        }
                     } label: {
                         Label(st.rawValue, systemImage: st.icon)
                     }
@@ -1176,8 +1178,10 @@ public struct DocumentDetailView: View {
             }
 
             Button(role: .destructive) {
-                service.deleteDocument(document.id)
-                dismiss()
+                Task { @MainActor in
+                    service.deleteDocument(document.id)
+                    dismiss()
+                }
             } label: {
                 Label("Dokument löschen", systemImage: "trash")
                     .font(.subheadline.bold())
@@ -1438,7 +1442,7 @@ public struct AddDocumentSheet: View {
                     status:       hasDueDate ? .deadlineSet : .inbox,
                     notes:        notes.isEmpty ? nil : notes
                 )
-                service.addDocument(doc)
+                await service.addDocument(doc)
             }
 
             await MainActor.run {

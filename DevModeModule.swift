@@ -239,6 +239,7 @@ struct DevModePanel: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview {
     let store = DevModeStore()
     store.isDevMode = true
@@ -248,3 +249,4 @@ struct DevModePanel: View {
     .environmentObject(store)
     .preferredColorScheme(.dark)
 }
+#endif

@@ -309,6 +309,8 @@ struct ContentShell: View {
                 case .camera:    EmptyView()
                 case .household: Text("Haushalt")
                 case .export:    Text("Export")
+                case .chat:      Text("KI-Chat")
+                case .devMode:   Text("Dev-Modus")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -542,6 +544,7 @@ extension View {
 
 // MARK: - Preview / Demo
 
+#if DEBUG
 #Preview("Design System Demo") {
     ZStack {
         // Background gradient so glass is visible
@@ -601,3 +604,4 @@ private struct PrivacyShieldDemoView: View {
         .privacyShield(isRevealed: $revealed)
     }
 }
+#endif

@@ -1155,6 +1155,7 @@ struct LivePulseDot: View {
 // MARK: - Preview
 // =============================================================================
 
+#if DEBUG
 #Preview("SharedHouseholdHubView") {
     SharedHouseholdHubView(
         householdId:   UUID(),
@@ -1180,6 +1181,7 @@ struct LivePulseDot: View {
         .padding()
         .preferredColorScheme(.dark)
 }
+#endif
 
 struct AddExpenseSheet: View {
     let project: SharedProject

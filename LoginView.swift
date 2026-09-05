@@ -301,9 +301,11 @@ struct LoginView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     LoginView()
         .environmentObject(AuthService())
         .environmentObject(UserSessionManager())
         .preferredColorScheme(.dark)
 }
+#endif

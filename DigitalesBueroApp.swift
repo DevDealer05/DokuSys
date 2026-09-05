@@ -828,6 +828,7 @@ struct ExportTabView: View {
 // MARK: - Preview
 // =============================================================================
 
+#if DEBUG
 #Preview("AppRootView") {
     let engine = DebtEngineService(userId: UUID())
     // Seed preview data
@@ -846,3 +847,4 @@ struct ExportTabView: View {
     .environmentObject(AppSettingsStore())
     .preferredColorScheme(.dark)
 }
+#endif
