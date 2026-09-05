@@ -3,8 +3,8 @@
 # Usage: ./scripts/generate_apps_json.sh [path/to/DigitalesBuero.ipa]
 set -e
 
-VERSION=$(grep 'displayVersion' Package.swift | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo '1.0')
-BUILD=$(grep 'bundleVersion' Package.swift | grep -oE '"[0-9]+"' | tr -d '"' | head -1 || echo '1')
+VERSION=$(grep 'displayVersion' Package.swift | sed -n 's/.*displayVersion: *"\([^"]*\)".*/\1/p' || echo '1.0.1')
+BUILD=$(grep 'bundleVersion' Package.swift | grep -oE '"[0-9]+"' | tr -d '"' | head -1 || echo '2')
 DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 IPA_PATH=${1:-DigitalesBuero.ipa}
 IPA_SIZE=$(stat -f%z "$IPA_PATH" 2>/dev/null || stat -c%s "$IPA_PATH" 2>/dev/null || echo 0)
