@@ -37,12 +37,11 @@ jobs:
 
       - name: Build with xcodebuild
         run: |
-          echo "=== Discovering Package Schemes ==="
-          xcodebuild -list -package-path . || true
+          echo "=== Discovering Schemes ==="
+          xcodebuild -list || true
 
           echo "=== Building iOS App Bundle ==="
           xcodebuild build \
-            -package-path . \
             -scheme DigitalesBuero \
             -destination 'generic/platform=iOS' \
             -configuration Release \
@@ -52,7 +51,6 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES || \
           xcodebuild build \
-            -package-path . \
             -scheme AppModule \
             -destination 'generic/platform=iOS' \
             -configuration Release \
@@ -62,7 +60,6 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES || \
           xcodebuild build \
-            -package-path . \
             -destination 'generic/platform=iOS' \
             -configuration Release \
             -derivedDataPath build/DerivedData \
