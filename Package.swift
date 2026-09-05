@@ -17,8 +17,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "de.kim.DigitalesBuero",
             teamIdentifier: "",
-            displayVersion: "1.0",
-            bundleVersion: "1",
+            displayVersion: "1.0.1",
+            bundleVersion: "2",
             appIcon: .placeholder(icon: .coins),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
