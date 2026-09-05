@@ -71,50 +71,14 @@ jobs:
       - name: Package IPA
         id: package
         run: |
-          mkdir -p dist/Payload
-          APP_PATH=$(find build/DerivedData -name "*.app" -type d | head -1)
-          echo "Discovered .app path: $APP_PATH"
-          if [ -n "$APP_PATH" ]; then
-            cp -R "$APP_PATH" dist/Payload/DigitalesBuero.app
-            echo "Successfully copied .app to Payload"
-          else
-            echo "Error: No .app bundle produced by xcodebuild"
-            exit 1
-          fi
-
-          cd dist && zip -qr ../DigitalesBuero.ipa Payload/
-          IPA_SIZE=$(stat -f%z ../DigitalesBuero.ipa 2>/dev/null || stat -c%s ../DigitalesBuero.ipa || echo 0)
+          ./scripts/package_ipa.sh "${{ steps.info.outputs.version }}" "${{ steps.info.outputs.build }}" "${{ steps.info.outputs.commit }}" "${{ steps.info.outputs.date }}"
+          IPA_SIZE=$(stat -f%z DigitalesBuero.ipa 2>/dev/null || stat -c%s DigitalesBuero.ipa || echo 0)
           echo "IPA_SIZE=$IPA_SIZE" >> $GITHUB_ENV
           echo "ipa_size=$IPA_SIZE" >> $GITHUB_OUTPUT
-          echo "IPA packaged: $IPA_SIZE bytes"
 
       - name: Generate apps.json
         run: |
-          cat > apps.json << EOF
-          {
-            "name": "Digitales Buero Updates",
-            "identifier": "de.kim.DigitalesBuero.repo",
-            "apps": [{
-              "name": "Digitales Buero",
-              "bundleIdentifier": "de.kim.DigitalesBuero",
-              "developerName": "Kim",
-              "subtitle": "Schulden und Haushalt Manager",
-              "version": "${{ steps.info.outputs.version }}",
-              "versionDate": "${{ steps.info.outputs.date }}",
-              "versionDescription": "Commit ${{ steps.info.outputs.commit }} - Auto-Build via GitHub Actions",
-              "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
-              "localizedDescription": "Digitales Buero - Haushalt, Schulden, Scanner und KI-Assistent.",
-              "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
-              "tintColor": "6E5BE8",
-              "size": $IPA_SIZE,
-              "permissions": [
-                {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"}
-              ]
-            }],
-            "news": []
-          }
-          EOF
-          echo "apps.json generated"
+          ./scripts/generate_apps_json.sh DigitalesBuero.ipa
           cat apps.json
 
       - name: Deploy to GitHub Pages

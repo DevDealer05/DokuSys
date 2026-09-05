@@ -25,7 +25,10 @@ cat > apps.json << EOF
     "localizedDescription": "Digitales Buero - Haushalt, Schulden, Scanner und KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": ${IPA_SIZE}
+    "size": ${IPA_SIZE},
+    "permissions": [
+      {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"}
+    ]
   }],
   "news": []
 }
