@@ -100,6 +100,7 @@ final class SubscriptionManager: ObservableObject {
             UserDefaults.standard.set(false, forKey: "app_public_distribution_mode")
             UserDefaults.standard.set(true, forKey: "subscription_is_pro")
             UserDefaults.standard.set(false, forKey: "show_dev_banner")
+            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
             AppLogger.shared.success("Lizenz", "Master/Creator-Code erfolgreich aktiviert: '\(clean)'. Vollversion freigeschaltet.")
             return true
         }

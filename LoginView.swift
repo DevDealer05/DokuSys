@@ -383,6 +383,7 @@ struct LoginView: View {
                 let code = devCodeInput
                 devCodeInput = ""
                 if SubscriptionManager.shared.unlockWithCreatorCode(code) {
+                    sessionManager.hasCompletedOnboarding = true
                     authService.signInAsGuest()
                 } else {
                     errorMessage = "Ungültiger Entwickler-Code. Bitte '0505' oder 'KIM-CREATOR-2026' eingeben."
