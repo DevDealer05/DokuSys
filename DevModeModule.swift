@@ -42,6 +42,7 @@ final class DevModeStore: ObservableObject {
 
 struct DevModeBanner: View {
     @EnvironmentObject var store: DevModeStore
+    @State private var showAIChat: Bool = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -50,6 +51,18 @@ struct DevModeBanner: View {
                 .font(.caption.bold())
                 .kerning(1)
             Spacer()
+            Button {
+                showAIChat = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                    Text("KI-Chat")
+                        .font(.caption.bold())
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.25), in: Capsule())
+            }
             Button {
                 withAnimation { store.isDevMode = false }
             } label: {
@@ -61,6 +74,9 @@ struct DevModeBanner: View {
         .padding(.vertical, 8)
         .background(Color.orange.opacity(0.92))
         .foregroundColor(.white)
+        .sheet(isPresented: $showAIChat) {
+            AIChatSheet()
+        }
     }
 }
 
@@ -93,6 +109,27 @@ struct DevModePanel: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+
+                // 0 — KI-Assistent & Code-Agent
+                devCard(title: "KI-Assistent & Code-Agent", icon: "sparkles") {
+                    Text("Unterhalte dich mit dem integrierten Gemini-Assistenten oder beauftrage direkte Code-Änderungen auf GitHub.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    NavigationLink {
+                        AIChatView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "bubble.left.and.bubble.right.fill")
+                            Text("KI-Chat öffnen")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.43, green: 0.36, blue: 0.91))
+                }
 
                 // A — Build Info
                 devCard(title: "Build-Informationen", icon: "info.circle") {
