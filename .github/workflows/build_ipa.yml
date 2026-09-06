@@ -35,6 +35,11 @@ jobs:
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
           echo "date=$DATE" >> $GITHUB_OUTPUT
 
+      - name: Generate App Icons
+        run: |
+          chmod +x scripts/generate_icons.sh scripts/package_ipa.sh scripts/generate_apps_json.sh
+          ./scripts/generate_icons.sh
+
       - name: Build with xcodebuild
         run: |
           echo "=== Discovering Schemes ==="

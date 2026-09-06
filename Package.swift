@@ -18,8 +18,8 @@ let package = Package(
             bundleIdentifier: "de.kim.DigitalesBuero",
             teamIdentifier: "",
             displayVersion: "1.1.0",
-            bundleVersion: "5",
-            appIcon: .placeholder(icon: .coins),
+            bundleVersion: "6",
+            appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .pad,
