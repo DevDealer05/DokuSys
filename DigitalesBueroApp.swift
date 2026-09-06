@@ -292,7 +292,9 @@ struct AppRootView: View {
             }
 
         case .chat:
-            AIChatView()
+            NavigationStack {
+                AIChatView()
+            }
 
         case .devMode:
             NavigationStack {

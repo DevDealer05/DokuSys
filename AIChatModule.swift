@@ -28,123 +28,170 @@ struct AIChatView: View {
     @State private var inputText: String = ""
     @State private var selectedMode: Int = 0
     @State private var showClearConfirm: Bool = false
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("gemini_api_key") private var geminiApiKey: String = ""
+    @State private var showApiKeySheet: Bool = false
 
     private let storageKey = "chat_history_v1"
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Mode picker (only in dev mode)
-                if devModeEnabled {
-                    Picker("Modus", selection: $selectedMode) {
-                        ForEach(ChatMode.allCases, id: \.rawValue) { mode in
-                            Text(mode.label).tag(mode.rawValue)
-                        }
+        VStack(spacing: 0) {
+            // Mode picker (only in dev mode)
+            if devModeEnabled {
+                Picker("Modus", selection: $selectedMode) {
+                    ForEach(ChatMode.allCases, id: \.rawValue) { mode in
+                        Text(mode.label).tag(mode.rawValue)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
 
-                // API key warning
-                if gemini.apiKey.isEmpty {
+            // API key warning
+            if gemini.apiKey.isEmpty {
+                Button {
+                    showApiKeySheet = true
+                } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
-                        Text("Kein Gemini API Key – bitte in Admin-Einstellungen eingeben.")
-                            .font(.caption)
+                        Text("Kein Gemini API Key – hier tippen zum Eingeben")
+                            .font(.caption.bold())
                             .foregroundColor(.orange)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundColor(.orange.opacity(0.8))
                     }
                     .padding(10)
                     .frame(maxWidth: .infinity)
-                    .background(Color.orange.opacity(0.12))
+                    .background(Color.orange.opacity(0.15))
                 }
+            }
 
-                // Code mode warning
-                if selectedMode == ChatMode.codeEditor.rawValue {
-                    HStack(spacing: 8) {
-                        Image(systemName: "terminal.fill")
-                            .foregroundColor(.green)
-                        Text("Code-Modus: KI kann GitHub-Commits erstellen & Build starten.")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.green.opacity(0.10))
+            // Code mode warning
+            if selectedMode == ChatMode.codeEditor.rawValue {
+                HStack(spacing: 8) {
+                    Image(systemName: "terminal.fill")
+                        .foregroundColor(.green)
+                    Text("Code-Modus: KI kann GitHub-Commits erstellen & Build starten.")
+                        .font(.caption)
+                        .foregroundColor(.green)
                 }
+                .padding(10)
+                .frame(maxWidth: .infinity)
+                .background(Color.green.opacity(0.10))
+            }
 
-                // Message list
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            if messages.isEmpty {
-                                emptyStateView
-                            }
-                            ForEach(messages) { msg in
-                                MessageBubbleView(message: msg)
-                                    .id(msg.id)
-                            }
+            // Message list
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        if messages.isEmpty {
+                            emptyStateView
                         }
-                        .padding()
-                    }
-                    .onChange(of: messages.count) { _ in
-                        if let last = messages.last {
-                            withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                        ForEach(messages) { msg in
+                            MessageBubbleView(message: msg)
+                                .id(msg.id)
                         }
                     }
+                    .padding()
                 }
-
-                Divider()
-
-                // Input bar
-                HStack(alignment: .bottom, spacing: 12) {
-                    TextField(
-                        selectedMode == ChatMode.codeEditor.rawValue
-                            ? "Code-Änderung beschreiben..."
-                            : "Nachricht eingeben...",
-                        text: $inputText,
-                        axis: .vertical
-                    )
-                    .lineLimit(1...5)
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-
-                    Button {
-                        Task { await sendMessage() }
-                    } label: {
-                        Image(systemName: gemini.isStreaming ? "stop.circle.fill" : "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(
-                                selectedMode == ChatMode.codeEditor.rawValue
-                                    ? Color.green : Color(red: 0.43, green: 0.36, blue: 0.91)
-                            )
-                    }
-                    .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty && !gemini.isStreaming)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-            }
-            .navigationTitle("KI-Assistent")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showClearConfirm = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(.secondary)
+                .onChange(of: messages.count) { _ in
+                    if let last = messages.last {
+                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
             }
-            .confirmationDialog("Verlauf löschen?", isPresented: $showClearConfirm, titleVisibility: .visible) {
-                Button("Löschen", role: .destructive) {
-                    messages = []
-                    saveMessages()
+
+            Divider()
+
+            // Input bar
+            HStack(alignment: .bottom, spacing: 12) {
+                TextField(
+                    selectedMode == ChatMode.codeEditor.rawValue
+                        ? "Code-Änderung beschreiben..."
+                        : "Nachricht eingeben...",
+                    text: $inputText,
+                    axis: .vertical
+                )
+                .lineLimit(1...5)
+                .padding(10)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+                Button {
+                    Task { await sendMessage() }
+                } label: {
+                    Image(systemName: gemini.isStreaming ? "stop.circle.fill" : "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(
+                            selectedMode == ChatMode.codeEditor.rawValue
+                                ? Color.green : Color(red: 0.43, green: 0.36, blue: 0.91)
+                        )
                 }
+                .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty && !gemini.isStreaming)
             }
-            .onAppear { loadMessages() }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
         }
+        .navigationTitle("KI-Assistent")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showClearConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .confirmationDialog("Verlauf löschen?", isPresented: $showClearConfirm, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) {
+                messages = []
+                saveMessages()
+            }
+        }
+        .sheet(isPresented: $showApiKeySheet) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Gib hier deinen Google Gemini API Key ein, um den KI-Chat und den Code-Modus zu nutzen.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    SecureField("AIzaSy...", text: $geminiApiKey)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    Text("Der Key wird sicher lokal auf diesem Gerät gespeichert.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("Gemini API Key")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Speichern") {
+                            UserDefaults.standard.set(geminiApiKey, forKey: "gemini_api_key")
+                            showApiKeySheet = false
+                        }
+                        .bold()
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Abbrechen") {
+                            showApiKeySheet = false
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.fraction(0.35), .medium])
+        }
+        .onAppear { loadMessages() }
     }
 
     // MARK: - Empty state
@@ -367,11 +414,31 @@ struct MessageBubbleView: View {
     }
 }
 
+// MARK: - AIChatSheet
+
+struct AIChatSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            AIChatView()
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Schließen") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+    }
+}
+
 // MARK: - Preview
 
 #if DEBUG
 #Preview {
-    AIChatView()
+    AIChatSheet()
         .preferredColorScheme(.dark)
 }
 #endif
+

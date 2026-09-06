@@ -363,6 +363,11 @@ struct UserSettingsView: View {
                         row("Entwickler-Modus", icon: "hammer.fill", color: .orange)
                     }
                     NavigationLink {
+                        AIChatView()
+                    } label: {
+                        row("KI-Chat & Code-Agent", icon: "sparkles", color: Color(red: 0.43, green: 0.36, blue: 0.91))
+                    }
+                    NavigationLink {
                         DevModePanel()
                             .environmentObject(DevModeStore())
                             .navigationTitle("Entwickler-Panel")
