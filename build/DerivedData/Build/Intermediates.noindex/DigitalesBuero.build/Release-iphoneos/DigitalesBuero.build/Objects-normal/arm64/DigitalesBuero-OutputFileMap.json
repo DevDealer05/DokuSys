@@ -102,6 +102,11 @@
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RealtimeHouseholdService.bc",
     "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RealtimeHouseholdService.o"
   },
+  "/Users/runner/work/DokuSys/DokuSys/RemoteLogServer.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RemoteLogServer.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RemoteLogServer.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/RemoteLogServer.o"
+  },
   "/Users/runner/work/DokuSys/DokuSys/SampleDocumentGenerator.swift" : {
     "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SampleDocumentGenerator.o",
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SampleDocumentGenerator.bc",

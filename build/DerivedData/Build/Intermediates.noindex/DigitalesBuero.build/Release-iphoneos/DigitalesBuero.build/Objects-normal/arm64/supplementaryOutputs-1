@@ -1,8 +1,8 @@
 "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/DerivedSources/resource_bundle_accessor.swift":
-  swiftdoc: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.swiftdoc"
   dependencies: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.d"
-  abi-baseline-json: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.abi.json"
-  swiftsourceinfo: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.swiftsourceinfo"
+  diagnostics: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.dia"
   const-values: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.swiftconstvalues"
   swiftmodule: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.swiftmodule"
-  diagnostics: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero-master.dia"
+  abi-baseline-json: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.abi.json"
+  swiftdoc: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.swiftdoc"
+  swiftsourceinfo: "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero.swiftsourceinfo"

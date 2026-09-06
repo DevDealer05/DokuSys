@@ -233,6 +233,27 @@ final class AppLogger: ObservableObject {
         self.error("Network", "Server-Antwort Timeout (504 Gateway Timeout)", details: "Endpoint: /v1/documents - Request-ID: req_8721bf")
         self.success("Commercial", "DATEV Buchungsstapel mit 5 Belegen erfolgreich exportiert.")
     }
+
+    func uploadLogToCloud() async throws -> String {
+        let text = exportLogText()
+        guard let data = text.data(using: .utf8) else {
+            throw NSError(domain: "AppLogger", code: -1, userInfo: [NSLocalizedDescriptionKey: "Encoding failed"])
+        }
+        let dateStr = Date().formatted(date: .numeric, time: .standard)
+            .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: ".", with: "-")
+        let filename = "diagnostics/Log_\(BuildInfo.current.commitSHA)_\(dateStr).txt"
+
+        do {
+            _ = try await SupabaseConfig.client.storage.from("system_logs").upload(filename, data: data, contentType: "text/plain; charset=utf-8")
+            self.success("CloudSync", "Log erfolgreich in Supabase-Cloud gesichert: \(filename)")
+            return filename
+        } catch {
+            self.warn("CloudSync", "Cloud-Upload Status: \(error.localizedDescription)")
+            return "log_cached"
+        }
+    }
 }
 
 // =============================================================================
@@ -241,6 +262,7 @@ final class AppLogger: ObservableObject {
 
 struct ConsoleLogView: View {
     @ObservedObject private var logger = AppLogger.shared
+    @ObservedObject private var server = RemoteLogServer.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var searchText: String = ""
@@ -249,6 +271,9 @@ struct ConsoleLogView: View {
     @State private var shareURL: URL? = nil
     @State private var showShareSheet: Bool = false
     @State private var showCopiedToast: Bool = false
+    @State private var showURLCopiedToast: Bool = false
+    @State private var isUploadingCloud: Bool = false
+    @State private var cloudUploadSuccess: Bool = false
     @State private var selectedEntryForDetail: LogEntry? = nil
 
     init() {}
@@ -269,6 +294,9 @@ struct ConsoleLogView: View {
             VStack(spacing: 0) {
                 // ── KPI Quick Bar ─────────────────────────────────────
                 kpiBar
+
+                // ── WLAN Diagnostic Server Banner ─────────────────────
+                wlanDiagnosticsCard
 
                 // ── Filter & Search Bar ───────────────────────────────
                 filterSection
@@ -381,6 +409,68 @@ struct ConsoleLogView: View {
         .buttonStyle(.plain)
     }
 
+    // ── WLAN Diagnostics Card ─────────────────────────────────────────
+    private var wlanDiagnosticsCard: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(server.isRunning ? Color.green : Color.secondary)
+                .frame(width: 8, height: 8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(server.isRunning ? "WLAN-Diagnose aktiv" : "WLAN-Diagnose aus")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(server.isRunning ? Color.green : Color.secondary)
+
+                    if server.isRunning, let url = server.serverURL {
+                        Text(url + "/logs/text")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Text(server.isRunning ? "curl / Browser-Auslesung im selben WLAN bereit" : "Starten, um Logs am Mac via WLAN auszulesen")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if server.isRunning, let url = server.serverURL {
+                Button {
+                    UIPasteboard.general.string = "\(url)/logs/text"
+                    withAnimation { showURLCopiedToast = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation { showURLCopiedToast = false }
+                    }
+                } label: {
+                    Image(systemName: showURLCopiedToast ? "checkmark" : "doc.on.doc")
+                        .font(.caption)
+                        .padding(6)
+                        .background(Color.white.opacity(0.1), in: Circle())
+                }
+            }
+
+            Button {
+                server.toggle()
+            } label: {
+                Text(server.isRunning ? "Stopp" : "Start")
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(server.isRunning ? Color.red.opacity(0.2) : Color.green.opacity(0.2), in: Capsule())
+                    .foregroundStyle(server.isRunning ? Color.red : Color.green)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.3))
+        .overlay(
+            Rectangle().frame(height: 1).foregroundStyle(Color.white.opacity(0.06)),
+            alignment: .bottom
+        )
+    }
+
     // ── Filter Section ────────────────────────────────────────────────
     private var filterSection: some View {
         HStack(spacing: 8) {
@@ -452,9 +542,9 @@ struct ConsoleLogView: View {
         .background(Color(red: 0.03, green: 0.03, blue: 0.05))
     }
 
-    // ── Bottom Control Bar ────────────────────────────────────────────
+    // ── Bottom Control Bar ────────────────────────────────────
     private var bottomControlBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             // Copy button
             Button {
                 UIPasteboard.general.string = logger.exportLogText()
@@ -463,12 +553,36 @@ struct ConsoleLogView: View {
                     withAnimation { showCopiedToast = false }
                 }
             } label: {
-                Label(showCopiedToast ? "✓ Kopiert!" : "Kopieren", systemImage: showCopiedToast ? "checkmark" : "doc.on.doc")
+                Label(showCopiedToast ? "✓" : "Kopieren", systemImage: showCopiedToast ? "checkmark" : "doc.on.doc")
                     .font(.caption.bold())
                     .foregroundStyle(showCopiedToast ? Color.green : Color.primary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 9)
                     .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Cloud Sync button
+            Button {
+                Task {
+                    isUploadingCloud = true
+                    defer { isUploadingCloud = false }
+                    do {
+                        _ = try await logger.uploadLogToCloud()
+                        withAnimation { cloudUploadSuccess = true }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            withAnimation { cloudUploadSuccess = false }
+                        }
+                    } catch {
+                        // Handled in logger
+                    }
+                }
+            } label: {
+                Label(cloudUploadSuccess ? "✓ Cloud" : "Cloud", systemImage: cloudUploadSuccess ? "checkmark.icloud.fill" : "icloud.and.arrow.up")
+                    .font(.caption.bold())
+                    .foregroundStyle(cloudUploadSuccess ? Color.green : Color.cyan)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(Color.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
             }
 
             // Share / Export button
@@ -478,11 +592,11 @@ struct ConsoleLogView: View {
                     self.showShareSheet = true
                 }
             } label: {
-                Label("Exportieren", systemImage: "square.and.arrow.up")
+                Label("Export", systemImage: "square.and.arrow.up")
                     .font(.caption.bold())
                     .foregroundStyle(Theme.primaryAccent)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 9)
                     .background(Theme.primaryAccent.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
             }
 
@@ -493,7 +607,7 @@ struct ConsoleLogView: View {
                 Image(systemName: "trash")
                     .font(.caption.bold())
                     .foregroundStyle(.red)
-                    .padding(10)
+                    .padding(9)
                     .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }
         }
