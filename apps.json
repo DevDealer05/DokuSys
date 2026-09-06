@@ -7,13 +7,13 @@
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
     "version": "1.1.0",
-    "versionDate": "2026-09-06T20:22:51Z",
-    "versionDescription": "v1.1.0 (Build 9, e9bd058): feat: add local WLAN diagnostic server, live remote log curl endpoint, and cloud sync (Build 9)",
+    "versionDate": "2026-09-06T20:27:51Z",
+    "versionDescription": "v1.1.0 (Build 10, 36aca40): fix(gemini): resolve HTTP 404 by using gemini-1.5-flash with auto-fallback and trimmed keys (Build 10)",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 2488239,
+    "size": 2494593,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -21,10 +21,10 @@
     ]
   }],
   "news": [{
-    "title": "Digitales Buero v1.1.0 (Build 9)",
-    "identifier": "release-9-e9bd058",
-    "caption": "feat: add local WLAN diagnostic server, live remote log curl endpoint, and cloud sync (Build 9)",
-    "date": "2026-09-06T20:22:51Z",
+    "title": "Digitales Buero v1.1.0 (Build 10)",
+    "identifier": "release-10-36aca40",
+    "caption": "fix(gemini): resolve HTTP 404 by using gemini-1.5-flash with auto-fallback and trimmed keys (Build 10)",
+    "date": "2026-09-06T20:27:51Z",
     "tintColor": "6E5BE8"
   }]
 }
