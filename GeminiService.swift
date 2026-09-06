@@ -74,7 +74,7 @@ final class GeminiService: ObservableObject {
         UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
     }
 
-    /// Streams a Gemini response chunk by chunk (supports multimodal text + image)
+    /// Streams a Gemini response chunk by chunk with automatic model fallback
     func streamResponse(
         prompt: String,
         systemContext: String,
@@ -84,80 +84,147 @@ final class GeminiService: ObservableObject {
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
-                guard !self.apiKey.isEmpty else {
+                let cleanKey = self.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !cleanKey.isEmpty else {
+                    AppLogger.shared.error("KI-Chat", "Kein Gemini API-Key hinterlegt.")
                     continuation.finish(throwing: GeminiError.missingAPIKey)
                     return
                 }
 
-                let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=\(self.apiKey)"
-                guard let url = URL(string: urlString) else {
-                    continuation.finish(throwing: GeminiError.networkError("Ungültige URL"))
-                    return
-                }
-
-                var contents: [[String: Any]] = history.filter { !$0.isStreaming && !$0.content.isEmpty }.map { msg in
-                    var parts: [[String: Any]] = [["text": msg.content]]
-                    if let imgData = msg.attachedImageData {
-                        let mime = (msg.attachedFileName?.hasSuffix(".pdf") == true) ? "application/pdf" : "image/jpeg"
-                        parts.append([
-                            "inline_data": [
-                                "mime_type": mime,
-                                "data": imgData.base64EncodedString()
-                            ]
-                        ])
-                    }
-                    return ["role": msg.role == .user ? "user" : "model", "parts": parts]
-                }
-
-                var currentParts: [[String: Any]] = [["text": prompt.isEmpty ? "Bitte analysiere dieses Dokument/Bild." : prompt]]
-                if let imgData = imageData {
-                    currentParts.append([
-                        "inline_data": [
-                            "mime_type": imageMimeType,
-                            "data": imgData.base64EncodedString()
-                        ]
-                    ])
-                }
-                contents.append(["role": "user", "parts": currentParts])
-
-                let body: [String: Any] = [
-                    "contents": contents,
-                    "systemInstruction": ["parts": [["text": systemContext]]],
-                    "generationConfig": ["temperature": 0.7, "maxOutputTokens": 4096]
+                // Model fallback chain: Primary is the globally available, stable gemini-1.5-flash
+                let candidateModels = [
+                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-pro",
+                    "gemini-2.0-flash-exp"
                 ]
 
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                var lastErrorDescription = "HTTP 404 (Modell nicht gefunden)"
 
-                do {
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-                    guard statusCode == 200 else {
-                        continuation.finish(throwing: GeminiError.networkError("HTTP \(statusCode)"))
-                        return
-                    }
-
-                    for try await line in bytes.lines {
-                        guard line.hasPrefix("data: ") else { continue }
-                        let jsonString = String(line.dropFirst(6))
-                        guard jsonString != "[DONE]" else { break }
-                        if let data = jsonString.data(using: .utf8),
-                           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                           let candidates = json["candidates"] as? [[String: Any]],
-                           let content = candidates.first?["content"] as? [String: Any],
-                           let parts = content["parts"] as? [[String: Any]],
-                           let text = parts.first?["text"] as? String {
-                            continuation.yield(text)
+                for (idx, model) in candidateModels.enumerated() {
+                    do {
+                        AppLogger.shared.info("KI-Chat", "Sende Anfrage an Modell '\(model)' (Versuch \(idx + 1)/\(candidateModels.count))...")
+                        let success = try await self.executeStream(
+                            model: model,
+                            apiKey: cleanKey,
+                            prompt: prompt,
+                            systemContext: systemContext,
+                            history: history,
+                            imageData: imageData,
+                            imageMimeType: imageMimeType,
+                            continuation: continuation
+                        )
+                        if success {
+                            AppLogger.shared.success("KI-Chat", "Gemini-Stream erfolgreich empfangen über '\(model)'.")
+                            continuation.finish()
+                            return
                         }
+                    } catch let err as GeminiError {
+                        lastErrorDescription = err.localizedDescription
+                        AppLogger.shared.warn("KI-Chat", "Modell '\(model)' fehlgeschlagen: \(err.localizedDescription). Prüfe nächstes Modell...")
+                        continue
+                    } catch {
+                        lastErrorDescription = error.localizedDescription
+                        AppLogger.shared.warn("KI-Chat", "Fehler bei '\(model)': \(error.localizedDescription)")
+                        continue
                     }
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: GeminiError.networkError(error.localizedDescription))
                 }
+
+                AppLogger.shared.error("KI-Chat", "Alle Modelle fehlgeschlagen: \(lastErrorDescription)")
+                continuation.finish(throwing: GeminiError.networkError(lastErrorDescription))
             }
         }
+    }
+
+    private func executeStream(
+        model: String,
+        apiKey: String,
+        prompt: String,
+        systemContext: String,
+        history: [ChatMessage],
+        imageData: Data?,
+        imageMimeType: String,
+        continuation: AsyncThrowingStream<String, Error>.Continuation
+    ) async throws -> Bool {
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/\(model):streamGenerateContent?alt=sse&key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
+            throw GeminiError.networkError("Ungültige URL für \(model)")
+        }
+
+        var contents: [[String: Any]] = history.filter { !$0.isStreaming && !$0.content.isEmpty }.map { msg in
+            var parts: [[String: Any]] = [["text": msg.content]]
+            if let imgData = msg.attachedImageData {
+                let mime = (msg.attachedFileName?.hasSuffix(".pdf") == true) ? "application/pdf" : "image/jpeg"
+                parts.append([
+                    "inline_data": [
+                        "mime_type": mime,
+                        "data": imgData.base64EncodedString()
+                    ]
+                ])
+            }
+            return ["role": msg.role == .user ? "user" : "model", "parts": parts]
+        }
+
+        var currentParts: [[String: Any]] = [["text": prompt.isEmpty ? "Bitte analysiere dieses Dokument/Bild." : prompt]]
+        if let imgData = imageData {
+            currentParts.append([
+                "inline_data": [
+                    "mime_type": imageMimeType,
+                    "data": imgData.base64EncodedString()
+                ]
+            ])
+        }
+        contents.append(["role": "user", "parts": currentParts])
+
+        let body: [String: Any] = [
+            "contents": contents,
+            "systemInstruction": ["parts": [["text": systemContext]]],
+            "generationConfig": ["temperature": 0.7, "maxOutputTokens": 4096]
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 30
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+        guard statusCode == 200 else {
+            var errorBody = ""
+            for try await line in bytes.lines {
+                errorBody += line
+                if errorBody.count > 300 { break }
+            }
+
+            if let data = errorBody.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errObj = json["error"] as? [String: Any],
+               let msg = errObj["message"] as? String {
+                throw GeminiError.networkError("HTTP \(statusCode) – \(msg)")
+            }
+
+            throw GeminiError.networkError("HTTP \(statusCode)")
+        }
+
+        var hasYielded = false
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let jsonString = String(line.dropFirst(6))
+            guard jsonString != "[DONE]" else { break }
+            if let data = jsonString.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let candidates = json["candidates"] as? [[String: Any]],
+               let content = candidates.first?["content"] as? [String: Any],
+               let parts = content["parts"] as? [[String: Any]],
+               let text = parts.first?["text"] as? String {
+                continuation.yield(text)
+                hasYielded = true
+            }
+        }
+        return hasYielded
     }
 
     /// Sends a code-change request to the Supabase Edge Function

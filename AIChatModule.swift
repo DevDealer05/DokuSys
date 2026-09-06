@@ -491,7 +491,20 @@ struct AIChatView: View {
             }
             messages[idx].content = response
         } catch {
-            messages[idx].content = "⚠️ Agent-Fehler: \(error.localizedDescription)"
+            AppLogger.shared.warn("KI-Agent", "Edge-Function nicht erreichbar (\(error.localizedDescription)). Wechsle auf direkten Gemini Code-Assistenten...")
+            messages[idx].content = "⚠️ *Cloud-Agent nicht erreichbar (\(error.localizedDescription)). Gemini analysiert die Anfrage direkt als Code-Assistent:*\n\n"
+            let codeSystemContext = """
+            Du bist ein erfahrener iOS Swift-Entwickler für die App "Digitales Büro". \
+            Beantworte Programmierfragen präzise auf Deutsch und liefere fertige, fehlerfreie Swift-Codeblöcke.
+            """
+            let stream = gemini.streamResponse(prompt: prompt, systemContext: codeSystemContext, history: Array(messages.dropLast()))
+            do {
+                for try await chunk in stream {
+                    messages[idx].content += chunk
+                }
+            } catch let directErr {
+                messages[idx].content += "\n\n⚠️ Auch direkter Gemini-Aufruf fehlgeschlagen: \(directErr.localizedDescription)"
+            }
         }
 
         messages[idx].isStreaming = false
