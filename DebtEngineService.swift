@@ -14,17 +14,21 @@ import SwiftUI
 enum DebtStatus: String, Codable, Sendable, CaseIterable {
     case active
     case negotiating
+    case mahnbescheid = "mahnbescheid"
+    case vollstreckung = "vollstreckung"
     case paid
     case disputed
     case writtenOff = "written_off"
 
     var displayName: String {
         switch self {
-        case .active:      return "Aktiv"
-        case .negotiating: return "In Verhandlung"
-        case .paid:        return "Bezahlt"
-        case .disputed:    return "Streitig"
-        case .writtenOff:  return "Abgeschrieben"
+        case .active:          return "Aktiv / Offen"
+        case .negotiating:     return "In Verhandlung"
+        case .mahnbescheid:    return "Mahnbescheid erlassen"
+        case .vollstreckung:   return "Vollstreckungsbescheid"
+        case .paid:            return "Bezahlt"
+        case .disputed:        return "Streitig"
+        case .writtenOff:      return "Abgeschrieben"
         }
     }
 }
@@ -61,6 +65,8 @@ enum TimelineEntryType: String, Codable, Sendable {
     case note           = "note"
     case statusChange   = "status_change"
     case superseded     = "superseded"
+    case mahnbescheid   = "mahnbescheid"
+    case vollstreckungsbescheid = "vollstreckungsbescheid"
 }
 
 // =============================================================================
@@ -458,6 +464,74 @@ final class DebtEngineService: ObservableObject {
             description:       "Status: \(old.displayName) → \(newStatus.displayName)"
         )
         appendTimelineEntry(entry, for: debtId)
+
+        Task { await persistDebt(debt) }
+        Task { await persistTimeline(entry) }
+    }
+
+    /// Fügt ein Dokument (z.B. Mahnbescheid oder Vollstreckungsbescheid) an ein bestehendes Aktenzeichen an
+    func attachNoticeToDebt(
+        debtId: UUID,
+        newStatus: DebtStatus? = nil,
+        newPrincipal: Decimal? = nil,
+        entryType: TimelineEntryType = .letterReceived,
+        letterDate: Date = Date(),
+        sender: String? = nil,
+        description: String,
+        documentURL: String? = nil,
+        documentName: String? = nil
+    ) {
+        guard let idx = debts.firstIndex(where: { $0.id == debtId }) else { return }
+        var debt = debts[idx]
+        let oldPrincipal = debt.currentPrincipal
+        let finalPrincipal = newPrincipal ?? oldPrincipal
+        let delta = finalPrincipal - oldPrincipal
+
+        if let s = newStatus {
+            debt.status = s
+        }
+        debt.currentPrincipal = finalPrincipal
+        debt.latestLetterDate = letterDate
+        if let snd = sender, !snd.isEmpty {
+            if debt.creditorName.isEmpty || debt.creditorName == "Unbekannt" {
+                debt.creditorName = snd
+            }
+        }
+        debt.updatedAt = Date()
+        debts[idx] = debt
+
+        let entry = DebtTimeline(
+            debtId:            debtId,
+            userId:            currentUserId,
+            entryType:         entryType,
+            amountDelta:       delta,
+            principalSnapshot: finalPrincipal,
+            documentURL:       documentURL,
+            documentName:      documentName,
+            sender:            sender ?? debt.creditorName,
+            letterDate:        letterDate,
+            description:       description
+        )
+        appendTimelineEntry(entry, for: debtId)
+
+        Task { await persistDebt(debt) }
+        Task { await persistTimeline(entry) }
+    }
+
+    /// Fügt eine neue Forderung manuell hinzu
+    func addDebt(_ debt: Debt, initialNote: String? = nil) {
+        debts.append(debt)
+        let entry = DebtTimeline(
+            debtId:            debt.id,
+            userId:            currentUserId,
+            entryType:         debt.status == .mahnbescheid ? .mahnbescheid : (debt.status == .vollstreckung ? .vollstreckungsbescheid : .letterReceived),
+            amountDelta:       debt.currentPrincipal,
+            principalSnapshot: debt.currentPrincipal,
+            sender:            debt.creditorName,
+            letterDate:        debt.latestLetterDate,
+            description:       initialNote ?? "Forderung erfasst (AZ: \(debt.fileNumber))"
+        )
+        appendTimelineEntry(entry, for: debt.id)
 
         Task { await persistDebt(debt) }
         Task { await persistTimeline(entry) }

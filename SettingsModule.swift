@@ -354,36 +354,58 @@ struct UserSettingsView: View {
                         }
                     }
 
-                    HStack {
-                        row(subManager.isPro ? "Pro-Abonnement aktiv" : "Free-Tarif (5 Scans/Monat)",
-                            icon: subManager.isPro ? "crown.fill" : "person.fill",
-                            color: subManager.isPro ? .orange : .secondary)
-                        Spacer()
-                        if subManager.isPro {
-                            Text("PRO")
+                    if subManager.isCreator {
+                        HStack(spacing: 12) {
+                            iconBadge("crown.fill", color: .orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Entwickler- & Ersteller-Status")
+                                    .font(.body.weight(.semibold))
+                                Text("Aktiv (Kim) · Lebenslang PRO unbegrenzt")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("PRO ✨")
                                 .font(.caption2.bold())
                                 .padding(.horizontal, 8).padding(.vertical, 3)
                                 .background(Color.orange.opacity(0.15), in: Capsule())
                                 .foregroundStyle(.orange)
                         }
-                    }
-
-                    toggle("Commercial-Modus", icon: "briefcase.fill", color: .indigo,
-                           binding: $subManager.isCommercialMode)
-
-                    NavigationLink {
-                        CommercialSettingsView()
-                    } label: {
-                        row("Geschäftsprofil & DATEV-Briefkopf", icon: "building.2.fill", color: .blue)
+                    } else {
+                        Button {
+                            subManager.isPresentingPaywall = true
+                        } label: {
+                            HStack {
+                                row(subManager.isPro ? "Pro-Abonnement aktiv" : "Free-Tarif (5 Scans/Monat)",
+                                    icon: subManager.isPro ? "crown.fill" : "person.fill",
+                                    color: subManager.isPro ? .orange : .secondary)
+                                Spacer()
+                                if subManager.isPro {
+                                    Text("PRO")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 8).padding(.vertical, 3)
+                                        .background(Color.orange.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     Button {
                         showRedeemCodeSheet = true
                     } label: {
-                        row("Code / Gutschein / Ersteller-Code", icon: "ticket.fill", color: .purple)
+                        HStack {
+                            row("Entwickler-Code (PIN 0505) / Gutschein", icon: "key.fill", color: .purple)
+                            Spacer()
+                            if subManager.isCreator {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
-                } header: { hdr("Abonnement & Lizenzen", icon: "crown") }
+                } header: { hdr("Abonnement & Entwickler-Lizenz", icon: "crown") }
 
                 // ── Konto & Administration ─────────────────────────────
                 Section {
@@ -406,26 +428,29 @@ struct UserSettingsView: View {
                     }
                 }
 
-                // ── Entwickler ─────────────────────────────────────────
+                // ── Entwickler-Werkzeuge ────────────────────────────────
                 Section {
                     Toggle(isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "dev_mode_enabled") },
-                        set: { UserDefaults.standard.set($0, forKey: "dev_mode_enabled") }
+                        get: { UserDefaults.standard.bool(forKey: "show_dev_banner") },
+                        set: { UserDefaults.standard.set($0, forKey: "show_dev_banner") }
                     )) {
-                        row("Entwickler-Modus", icon: "hammer.fill", color: .orange)
+                        row("Entwickler-Kopfleiste (Banner) anzeigen", icon: "rectangle.topthird.inset.filled", color: .orange)
                     }
-                    NavigationLink {
-                        AIChatView()
-                    } label: {
-                        row("KI-Chat & Code-Agent", icon: "sparkles", color: Color(red: 0.43, green: 0.36, blue: 0.91))
-                    }
+
                     NavigationLink {
                         DevModePanel()
                             .environmentObject(DevModeStore())
                             .navigationTitle("Entwickler-Panel")
                     } label: {
-                        row("Entwickler-Panel öffnen", icon: "hammer.circle.fill", color: .green)
+                        row("Entwickler-Panel (SideStore & CI/CD)", icon: "hammer.circle.fill", color: .green)
                     }
+
+                    NavigationLink {
+                        AIChatView()
+                    } label: {
+                        row("KI-Chat & Code-Agent", icon: "sparkles", color: Color(red: 0.43, green: 0.36, blue: 0.91))
+                    }
+
                     NavigationLink {
                         ConsoleLogView()
                     } label: {
@@ -442,8 +467,8 @@ struct UserSettingsView: View {
                             }
                         }
                     }
-                } header: { hdr("Entwickler & KI", icon: "hammer") }
-                  footer: { Text("Im Entwickler-Modus hast du Zugang zum KI-Chat, Code-Modus und Testdaten-Generator.") }
+                } header: { hdr("Entwickler-Werkzeuge", icon: "hammer") }
+                  footer: { Text("Du nutzt die App ganz normal. Die Entwickler-Werkzeuge stehen dir hier jederzeit zur Verfügung.") }
 
                 // ── App-Info ───────────────────────────────────────────
                 Section {
@@ -1231,9 +1256,9 @@ struct RedeemPromoCodeSheet: View {
                 .padding(.top, 24)
 
                 VStack(spacing: 6) {
-                    Text("Code einlösen")
+                    Text("Code oder Entwickler-PIN")
                         .font(.title2.bold())
-                    Text("Gib deinen generierten Promo-, Testphasen- oder Lifetime-Code ein, um alle Pro-Funktionen freizuschalten.")
+                    Text("Gib deinen Entwickler-Code (PIN 0505 oder KIM-CREATOR-2026) oder Promo-Code ein, um alle Funktionen unbegrenzt freizuschalten.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -1254,7 +1279,7 @@ struct RedeemPromoCodeSheet: View {
                             .padding(.horizontal, 10).padding(.vertical, 4)
                             .background(success.type.color.opacity(0.12), in: Capsule())
 
-                        Text("Du hast ab sofort vollen Zugriff auf alle Pro-Features, unbegrenzte Dokumenten-Scans und den Schuldnerberatungs-Export.")
+                        Text("Du hast ab sofort unbegrenzten Zugriff auf alle Funktionen, unbegrenzte Dokumenten-Scans, Schulden, Haushalt und Entwickler-Werkzeuge.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -1276,7 +1301,7 @@ struct RedeemPromoCodeSheet: View {
                 } else {
                     // Code Input Form
                     VStack(spacing: 16) {
-                        TextField("Z. B. ABCD-EFGH-JKLM", text: $inputCode)
+                        TextField("PIN oder Code (z.B. 0505)", text: $inputCode)
                             .font(.system(.title3, design: .monospaced).weight(.bold))
                             .multilineTextAlignment(.center)
                             .textInputAutocapitalization(.characters)

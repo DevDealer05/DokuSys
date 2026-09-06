@@ -10,6 +10,7 @@ import SwiftUI
 import VisionKit
 import Vision
 import Combine
+import PDFKit
 
 // MARK: - Shared DTOs
 
@@ -267,21 +268,15 @@ actor VisionOCRService {
                 }
             }
         }
-        // Sort descending so the largest (= most likely Hauptforderung) comes first
-        return found.sorted { $0.decimal > $1.decimal }
+        return found
     }
 
-    // MARK: German Decimal Parser
-    // "1.234.567,89" → Decimal(1234567.89)
     static func parseGermanDecimal(_ raw: String) -> Decimal? {
-        // Remove thousands dots, replace comma with dot
         let normalised = raw
             .replacingOccurrences(of: ".", with: "")
             .replacingOccurrences(of: ",", with: ".")
         return Decimal(string: normalised)
     }
-
-    // ── Error ──────────────────────────────────────────────────────────────
 
     enum OCRError: LocalizedError {
         case invalidImage
@@ -290,99 +285,268 @@ actor VisionOCRService {
 }
 
 // =============================================================================
-// MARK: - 3. TriageCardDeckView
+// MARK: - 3. TriageListView (Übersichtliche Liste nach Gläubiger aufgeteilt)
 // =============================================================================
 
-// MARK: TriageItem – one card in the deck
+enum ScannedDocumentKind: String, CaseIterable, Identifiable {
+    case mahnbescheid = "Mahnbescheid"
+    case vollstreckungsbescheid = "Vollstreckungsbescheid"
+    case inkassoMahnung = "Inkasso-Mahnung"
+    case invoice = "Rechnung / Beleg"
+    case pantry = "Vorrat / Kassenbon"
+    case hardware = "Hardware-Wartung"
+    case general = "Dokument"
 
-struct TriageItem: Identifiable {
-    let id       = UUID()
-    var page:    ScannedPage
-    var ocr:     OCRResult?
+    var id: String { rawValue }
 
-    // Editable fields (user can correct before confirming)
-    var fileNumber: String
-    var amount:     String
-    var letterDate: Date
+    var icon: String {
+        switch self {
+        case .mahnbescheid: return "scale.3d"
+        case .vollstreckungsbescheid: return "bolt.shield.fill"
+        case .inkassoMahnung: return "envelope.badge.fill"
+        case .invoice: return "doc.plaintext.fill"
+        case .pantry: return "cart.fill"
+        case .hardware: return "wrench.and.screwdriver.fill"
+        case .general: return "doc.fill"
+        }
+    }
 
-    init(page: ScannedPage) {
-        self.page       = page
-        self.ocr        = page.ocrResult
-        self.fileNumber = page.ocrResult?.primaryFileNumber ?? ""
-        self.amount     = page.ocrResult?.primaryAmount?.raw ?? ""
-        self.letterDate = Date()
+    var badgeColor: Color {
+        switch self {
+        case .mahnbescheid: return .orange
+        case .vollstreckungsbescheid: return .red
+        case .inkassoMahnung: return .blue
+        case .invoice: return .teal
+        case .pantry: return .blue
+        case .hardware: return .purple
+        case .general: return .secondary
+        }
     }
 }
 
-// MARK: SwipeDecision
+enum TriageDestination: String, CaseIterable, Identifiable {
+    case debt = "Schulden-Akte"
+    case pantry = "Vorratsschrank"
+    case hardware = "Hardware-Akte"
+    case archive = "Dokumenten-Archiv"
+    case discard = "Verwerfen"
 
-enum SwipeDecision {
-    case toDebts     // 👉 Swipe Rechts: Übernahme in die Schulden-Engine
-    case toPantry    // 👈 Swipe Links: Ablage im Vorratsschrank
-    case toHardware  // 👆 Swipe Oben: Zuordnung zur Hardware-Akte
-    case discard     // 👇 Swipe Unten: Verwerfen / Papierkorb
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .debt:     return "exclamationmark.triangle.fill"
+        case .pantry:   return "cart.fill"
+        case .hardware: return "wrench.and.screwdriver.fill"
+        case .archive:  return "archivebox.fill"
+        case .discard:  return "trash.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .debt:     return .orange
+        case .pantry:   return .blue
+        case .hardware: return .purple
+        case .archive:  return .teal
+        case .discard:  return .gray
+        }
+    }
 }
 
-// MARK: TriageCardDeckView
+struct TriageItem: Identifiable {
+    let id = UUID()
+    var page: ScannedPage
+    var ocr: OCRResult?
 
-struct TriageCardDeckView: View {
-    // Injected from parent
+    var fileNumber: String
+    var creditorName: String
+    var amount: String
+    var letterDate: Date
+    var kind: ScannedDocumentKind
+    var destination: TriageDestination
+    var targetStatus: DebtStatus
+    var matchedDebtId: UUID?
+    var notes: String
+
+    init(page: ScannedPage, engine: DebtEngineService? = nil) {
+        self.page = page
+        self.ocr = page.ocrResult
+        self.letterDate = Date()
+        self.notes = ""
+
+        let text = page.ocrResult?.rawText ?? ""
+        let lower = text.lowercased()
+
+        let fn = page.ocrResult?.primaryFileNumber ?? ""
+        self.fileNumber = fn
+        self.amount = page.ocrResult?.primaryAmount?.raw ?? ""
+
+        let detectedSender = Self.detectSender(from: text)
+        self.creditorName = detectedSender ?? "Unbekannter Gläubiger"
+
+        if lower.contains("vollstreckungsbescheid") || lower.contains("vollstreckbare ausfertigung") || lower.contains("vollstreckungsauftrag") {
+            self.kind = .vollstreckungsbescheid
+            self.destination = .debt
+            self.targetStatus = .vollstreckung
+        } else if lower.contains("mahnbescheid") || (lower.contains("amtsgericht") && (lower.contains("mahngericht") || lower.contains("mahnverfahren") || lower.contains("antragsteller"))) {
+            self.kind = .mahnbescheid
+            self.destination = .debt
+            self.targetStatus = .mahnbescheid
+        } else if lower.contains("inkasso") || lower.contains("mahnung") || lower.contains("letzte mahnung") || lower.contains("gläubiger") || lower.contains("forderung") {
+            self.kind = .inkassoMahnung
+            self.destination = .debt
+            self.targetStatus = .active
+        } else if lower.contains("kassenbon") || lower.contains("rewe") || lower.contains("edeka") || lower.contains("aldi") || lower.contains("lidl") || lower.contains("hafermilch") {
+            self.kind = .pantry
+            self.destination = .pantry
+            self.targetStatus = .active
+        } else if lower.contains("wartung") || lower.contains("seriennummer") || lower.contains("reparatur") || lower.contains("kaffeemaschine") || lower.contains("jura") {
+            self.kind = .hardware
+            self.destination = .hardware
+            self.targetStatus = .active
+        } else {
+            self.kind = .invoice
+            self.destination = .debt
+            self.targetStatus = .active
+        }
+
+        if let eng = engine {
+            if let matched = eng.debts.first(where: { debt in
+                (!fn.isEmpty && (debt.fileNumber.localizedCaseInsensitiveContains(fn) || fn.localizedCaseInsensitiveContains(debt.fileNumber)))
+                || (!debt.fileNumber.isEmpty && text.localizedCaseInsensitiveContains(debt.fileNumber))
+                || (!debt.creditorName.isEmpty && debt.creditorName != "Unbekannt" && text.localizedCaseInsensitiveContains(debt.creditorName))
+            }) {
+                self.matchedDebtId = matched.id
+                if self.fileNumber.isEmpty { self.fileNumber = matched.fileNumber }
+                if self.creditorName.isEmpty || self.creditorName == "Unbekannter Gläubiger" {
+                    self.creditorName = matched.creditorName
+                }
+            }
+        }
+    }
+
+    private static func detectSender(from text: String) -> String? {
+        let issuers = [
+            "EOS Deutscher Inkasso-Dienst", "EOS", "Creditreform", "Universum Inkasso", "Intrum",
+            "Paigo", "Riverty", "KSP Rechtsanwälte", "Infoscore", "Lowell", "Vodafone", "Deutsche Telekom",
+            "Telekom", "O2", "1&1", "Stadtwerke", "Vattenfall", "E.ON", "Allianz", "REWE", "EDEKA",
+            "Lidl", "Aldi", "Jura", "Amtsgericht Hamburg", "Amtsgericht Wedding", "Amtsgericht"
+        ]
+        for iss in issuers {
+            if text.localizedCaseInsensitiveContains(iss) { return iss }
+        }
+        return nil
+    }
+}
+
+struct TriageListView: View {
     @ObservedObject var engine: DebtEngineService
-
-    // The pending cards (top of array = top card)
     @State private var items: [TriageItem]
-
-    // Feedback
-    @State private var toast: ToastData?
-    @State private var showEditSheet: Bool = false
     @State private var editingItem: TriageItem?
+    @State private var previewImage: UIImage?
+    @State private var toast: ToastData?
+    @State private var isCommittingAll = false
+    @Environment(\.dismiss) private var dismiss
 
     init(pages: [ScannedPage], engine: DebtEngineService) {
-        self._items = State(initialValue: pages.map(TriageItem.init))
+        self._items = State(initialValue: pages.map { TriageItem(page: $0, engine: engine) })
         self.engine = engine
+    }
+
+    private var groupedSections: [(creditor: String, total: Decimal, items: [TriageItem])] {
+        let dict = Dictionary(grouping: items, by: { $0.creditorName.isEmpty ? "Unbekannter Gläubiger / Beleg" : $0.creditorName })
+        return dict.keys.sorted().map { key in
+            let list = dict[key] ?? []
+            let total = list.reduce(Decimal.zero) { sum, it in
+                let val = VisionOCRService.parseGermanDecimal(
+                    it.amount
+                        .replacingOccurrences(of: "€", with: "")
+                        .replacingOccurrences(of: "EUR", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                ) ?? Decimal.zero
+                return sum + val
+            }
+            return (creditor: key, total: total, items: list)
+        }
     }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // ── Background ─────────────────────────────────────────────
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
+            Color(.systemGroupedBackground).ignoresSafeArea()
 
-            // ── Deck ───────────────────────────────────────────────────
-            ZStack {
-                if items.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(items.indices.reversed(), id: \.self) { index in
-                        CardView(
-                            item: $items[index],
-                            isTop: index == items.count - 1,
-                            stackIndex: items.count - 1 - index,
-                            onSwipe: { decision in handleSwipe(decision, at: index) },
-                            onEdit: {
-                                editingItem = items[index]
-                                showEditSheet = true
+            if items.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+                        headerBanner
+
+                        ForEach(groupedSections, id: \.creditor) { section in
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .center, spacing: 8) {
+                                    Image(systemName: "building.2.crop.circle.fill")
+                                        .font(.title3)
+                                        .foregroundStyle(Theme.primaryAccent)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(section.creditor)
+                                            .font(.headline.weight(.bold))
+                                            .foregroundStyle(.primary)
+
+                                        Text("\(section.items.count) Beleg\(section.items.count == 1 ? "" : "e") erfasst")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    if section.total > 0 {
+                                        VStack(alignment: .trailing, spacing: 2) {
+                                            Text("Gesamtsumme")
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.secondary)
+                                            Text(section.total, format: .currency(code: "EUR"))
+                                                .font(.subheadline.weight(.heavy))
+                                                .foregroundStyle(Theme.primaryAccent)
+                                        }
+                                        .padding(.horizontal, 10).padding(.vertical, 4)
+                                        .background(Theme.primaryAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                                    }
+                                }
+                                .padding(.horizontal, 4)
+
+                                ForEach(section.items) { item in
+                                    if let idx = items.firstIndex(where: { $0.id == item.id }) {
+                                        TriageItemCard(
+                                            item: $items[idx],
+                                            engine: engine,
+                                            onPreview: { previewImage = items[idx].page.image },
+                                            onOptions: { editingItem = items[idx] },
+                                            onCommitSingle: { Task { await commitSingleItem(items[idx]) } },
+                                            onDiscard: {
+                                                withAnimation(.spring(response: 0.35)) {
+                                                    items.removeAll { $0.id == item.id }
+                                                }
+                                                showToast(icon: "trash.fill", text: "Beleg verworfen", color: .orange)
+                                            }
+                                        )
+                                    }
+                                }
                             }
-                        )
-                    }
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.horizontal, 16)
+                        }
 
-            // ── 4-Way Action hints ─────────────────────────────────────
-            if !items.isEmpty {
-                VStack(spacing: 8) {
-                    actionHint(icon: "wrench.and.screwdriver.fill", label: "👆 Oben: Hardware", color: .purple)
-                    HStack(spacing: 20) {
-                        actionHint(icon: "cart.fill", label: "👈 Links: Vorrat", color: .blue)
-                        actionHint(icon: "eurosign.circle.fill", label: "👉 Rechts: Schulden", color: .green)
+                        Color.clear.frame(height: 100)
                     }
-                    actionHint(icon: "trash.fill", label: "👇 Unten: Verwerfen", color: .orange)
+                    .padding(.top, 12)
                 }
-                .padding(.bottom, 24)
+
+                stickyBottomBar
             }
         }
+        .navigationTitle("Belege erfassen (\(items.count))")
+        .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .top) {
             if let toast {
                 ToastView(data: toast)
@@ -391,96 +555,142 @@ struct TriageCardDeckView: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.75), value: toast?.id)
-        .sheet(isPresented: $showEditSheet, onDismiss: applyEdit) {
-            if let binding = bindingForEditing() {
-                EditCardSheet(item: binding)
+        .sheet(item: $editingItem) { item in
+            if let idx = items.firstIndex(where: { $0.id == item.id }) {
+                TriageOptionsSheet(item: $items[idx], engine: engine)
             }
         }
-        .navigationTitle("Belege (\(items.count))")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────
-
-    private func handleSwipe(_ decision: SwipeDecision, at index: Int) {
-        let item = items[index]
-        _ = withAnimation(.spring(response: 0.35)) {
-            items.remove(at: index)
-        }
-
-        switch decision {
-        case .toDebts:
-            Task { await commitItem(item) }
-        case .toPantry:
-            Task { await commitPantryItem(item) }
-        case .toHardware:
-            Task { await commitHardwareItem(item) }
-        case .discard:
-            showToast(icon: "trash.fill", text: "Beleg verworfen", color: .orange)
-        }
-    }
-
-    private func commitPantryItem(_ item: TriageItem) async {
-        let name = item.fileNumber.isEmpty ? "Neuer Vorrat" : item.fileNumber
-        let pantryItem = PantryItem(
-            id: UUID(),
-            householdId: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
-            addedBy: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
-            name: name,
-            category: "Lebensmittel",
-            quantity: 1,
-            unit: "Stück",
-            minQuantity: 1,
-            expiryDate: Calendar.current.date(byAdding: .month, value: 3, to: Date()),
-            storageLocation: "Küche",
-            onShoppingList: false,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-        do {
-            try await SupabaseConfig.client.from("household_pantry").insert(pantryItem).execute()
-            showToast(icon: "cart.fill.badge.plus", text: "Im Vorratsschrank abgelegt", color: .blue)
-        } catch {
-            showToast(icon: "cart.fill", text: "Im Vorrat gespeichert", color: .blue)
+        .sheet(isPresented: Binding(
+            get: { previewImage != nil },
+            set: { if !$0 { previewImage = nil } }
+        )) {
+            if let img = previewImage {
+                NavigationStack {
+                    ZStack {
+                        Color.black.ignoresSafeArea()
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                    }
+                    .navigationTitle("Scan-Vorschau")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Fertig") { previewImage = nil }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private func commitHardwareItem(_ item: TriageItem) async {
-        let deviceName = item.fileNumber.isEmpty ? "Gerät / Rechnung" : item.fileNumber
-        let cost = Decimal(string: item.amount.replacingOccurrences(of: "€", with: "").trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")) ?? 0
-        let log = HardwareLogEntry(
-            id: UUID(),
-            userId: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
-            deviceName: deviceName,
-            deviceType: .other,
-            logType: .maintenance,
-            performedAt: Date(),
-            cost: cost,
-            description: "Scan vom \(Date().formatted(date: .numeric, time: .omitted))",
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-        do {
-            try await SupabaseConfig.client.from("hardware_log").insert(log).execute()
-            showToast(icon: "wrench.and.screwdriver.fill", text: "In Hardware-Akte abgelegt", color: .purple)
-        } catch {
-            showToast(icon: "wrench.fill", text: "In Hardware-Akte gespeichert", color: .purple)
+    private var headerBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "list.clipboard.fill")
+                .font(.title2)
+                .foregroundStyle(Theme.primaryAccent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Übersicht nach Gläubigern")
+                    .font(.subheadline.bold())
+                Text("Prüfe Betrag & Status. Bescheide werden automatisch bestehenden Aktenzeichen zugeordnet.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8))
+        .padding(.horizontal, 16)
+    }
+
+    private var stickyBottomBar: some View {
+        VStack(spacing: 8) {
+            Button {
+                Task { await commitAllItems() }
+            } label: {
+                HStack(spacing: 10) {
+                    if isCommittingAll {
+                        ProgressView().tint(.white)
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.headline)
+                    }
+                    Text("Alle \(items.count) Belege speichern & zuordnen")
+                        .font(.headline.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Theme.primaryGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: Theme.primaryAccent.opacity(0.4), radius: 10, y: 4)
+            }
+            .disabled(isCommittingAll)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Divider()
         }
     }
 
-    private func commitItem(_ item: TriageItem) async {
-        // Parse amount from the (possibly edited) string
-        guard let decimal = VisionOCRService.parseGermanDecimal(
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(Theme.primaryGradient)
+            Text("Alle Belege übernommen!")
+                .font(.title2.weight(.semibold))
+            Text("Die Dokumente wurden erfolgreich zugeordnet und abgespeichert.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button("Zurück zur Übersicht") {
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.primaryAccent)
+            .padding(.top, 8)
+        }
+        .padding(40)
+    }
+
+    private func commitSingleItem(_ item: TriageItem) async {
+        await executeCommit(for: item)
+        withAnimation(.spring(response: 0.35)) {
+            items.removeAll { $0.id == item.id }
+        }
+        if items.isEmpty {
+            try? await Task.sleep(for: .seconds(1.0))
+            await MainActor.run { dismiss() }
+        }
+    }
+
+    private func commitAllItems() async {
+        isCommittingAll = true
+        for item in items {
+            await executeCommit(for: item)
+        }
+        isCommittingAll = false
+        withAnimation(.spring(response: 0.35)) {
+            items.removeAll()
+        }
+        showToast(icon: "checkmark.circle.fill", text: "Alle Belege erfolgreich zugeordnet!", color: .green)
+        try? await Task.sleep(for: .seconds(1.2))
+        await MainActor.run { dismiss() }
+    }
+
+    private func executeCommit(for item: TriageItem) async {
+        let decimal = VisionOCRService.parseGermanDecimal(
             item.amount
                 .replacingOccurrences(of: "€", with: "")
                 .replacingOccurrences(of: "EUR", with: "")
                 .trimmingCharacters(in: .whitespaces)
-        ) else {
-            showToast(icon: "exclamationmark.triangle", text: "Betrag ungültig", color: .red)
-            return
-        }
+        ) ?? 0
 
-        // Upload image to Storage
         var documentURL: String? = nil
         if let data = item.page.image.jpegData(compressionQuality: 0.8) {
             let userIdString = (try? SupabaseConfig.client.auth.session.user.id.uuidString) ?? "unknown_user"
@@ -495,408 +705,407 @@ struct TriageCardDeckView: View {
             }
         }
 
-        let scanResult = ScanResult(
-            fileNumber: item.fileNumber,
-            amount: decimal,
-            letterDate: item.letterDate,
-            documentURL: documentURL,
-            documentName: "Scan \(item.letterDate.formatted(date: .numeric, time: .omitted))"
-        )
+        switch item.destination {
+        case .debt:
+            let docTitle = "\(item.kind.rawValue): \(item.creditorName)"
+            if let matchedId = item.matchedDebtId {
+                let entryType: TimelineEntryType
+                switch item.kind {
+                case .mahnbescheid: entryType = .mahnbescheid
+                case .vollstreckungsbescheid: entryType = .vollstreckungsbescheid
+                default: entryType = .letterReceived
+                }
 
-        do {
-            let outcome = try engine.processNewScan(scanResult)
-            switch outcome {
-            case .created:
-                showToast(icon: "plus.circle.fill",
-                          text: "Neue Forderung: \(item.fileNumber)",
-                          color: Theme.primaryAccent)
-            case .updated(_, let delta, _):
-                let sign  = delta > 0 ? "+" : "−"
-                let abs   = Swift.abs(delta)
-                showToast(icon: "arrow.triangle.2.circlepath",
-                          text: "Aktualisiert: \(sign)\(abs) €",
-                          color: .blue)
-            case .unchanged:
-                showToast(icon: "equal.circle.fill", text: "Keine Änderung", color: .gray)
+                let desc: String
+                if item.kind == .mahnbescheid {
+                    desc = "⚖️ Gerichtlicher Mahnbescheid eingegangen (Forderung: \(item.amount))"
+                } else if item.kind == .vollstreckungsbescheid {
+                    desc = "⚡ Vollstreckungsbescheid ergangen (Gesamt: \(item.amount))"
+                } else {
+                    desc = "\(item.kind.rawValue) erfasst (AZ: \(item.fileNumber))"
+                }
+
+                engine.attachNoticeToDebt(
+                    debtId: matchedId,
+                    newStatus: item.targetStatus,
+                    newPrincipal: decimal > 0 ? decimal : nil,
+                    entryType: entryType,
+                    letterDate: item.letterDate,
+                    sender: item.creditorName,
+                    description: desc,
+                    documentURL: documentURL,
+                    documentName: docTitle
+                )
+                showToast(icon: "arrow.triangle.2.circlepath", text: "Zu Inkasso-Fall hinzugefügt", color: .green)
+            } else {
+                let newDebt = Debt(
+                    userId: engine.currentUserId,
+                    fileNumber: item.fileNumber.isEmpty ? "AZ-\(Int.random(in: 10000...99999))" : item.fileNumber,
+                    creditorName: item.creditorName.isEmpty ? "Unbekannt" : item.creditorName,
+                    originalAmount: decimal,
+                    currentPrincipal: decimal,
+                    status: item.targetStatus,
+                    latestLetterDate: item.letterDate
+                )
+                let note = "\(item.kind.rawValue) erfasst. Betrag: \(item.amount)"
+                engine.addDebt(newDebt, initialNote: note)
+                showToast(icon: "plus.circle.fill", text: "Neue Forderung: \(newDebt.fileNumber)", color: Theme.primaryAccent)
             }
-        } catch {
-            showToast(icon: "xmark.octagon.fill",
-                      text: error.localizedDescription,
-                      color: .red)
+
+        case .pantry:
+            let name = item.fileNumber.isEmpty ? (item.creditorName.isEmpty ? "Vorratseinkauf" : item.creditorName) : item.fileNumber
+            let pantryItem = PantryItem(
+                id: UUID(),
+                householdId: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
+                addedBy: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
+                name: name,
+                category: "Lebensmittel",
+                quantity: 1,
+                unit: "Stück",
+                minQuantity: 1,
+                expiryDate: Calendar.current.date(byAdding: .month, value: 3, to: Date()),
+                storageLocation: "Küche",
+                onShoppingList: false,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+            do {
+                try await SupabaseConfig.client.from("household_pantry").insert(pantryItem).execute()
+                showToast(icon: "cart.fill.badge.plus", text: "Im Vorratsschrank abgelegt", color: .blue)
+            } catch {
+                showToast(icon: "cart.fill", text: "Im Vorrat gespeichert", color: .blue)
+            }
+
+        case .hardware:
+            let deviceName = item.creditorName.isEmpty ? "Gerät / Rechnung" : item.creditorName
+            let log = HardwareLogEntry(
+                id: UUID(),
+                userId: (try? SupabaseConfig.client.auth.session.user.id) ?? UUID(),
+                deviceName: deviceName,
+                deviceType: .other,
+                logType: .maintenance,
+                performedAt: item.letterDate,
+                cost: decimal,
+                description: "Beleg vom \(item.letterDate.formatted(date: .numeric, time: .omitted)) (AZ: \(item.fileNumber))",
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+            do {
+                try await SupabaseConfig.client.from("hardware_log").insert(log).execute()
+                showToast(icon: "wrench.and.screwdriver.fill", text: "In Hardware-Akte abgelegt", color: .purple)
+            } catch {
+                showToast(icon: "wrench.fill", text: "In Hardware-Akte gespeichert", color: .purple)
+            }
+
+        case .archive:
+            showToast(icon: "archivebox.fill", text: "Im Archiv abgelegt", color: .teal)
+
+        case .discard:
+            showToast(icon: "trash.fill", text: "Beleg verworfen", color: .orange)
         }
     }
 
     private func showToast(icon: String, text: String, color: Color) {
         toast = ToastData(id: UUID(), icon: icon, text: text, color: color)
-        // Auto-dismiss
         Task {
             try? await Task.sleep(for: .seconds(2.5))
             await MainActor.run { toast = nil }
         }
     }
-
-    private func applyEdit() {
-        guard let edited = editingItem,
-              let idx = items.firstIndex(where: { $0.id == edited.id }) else { return }
-        items[idx] = edited
-        editingItem = nil
-    }
-
-    private func bindingForEditing() -> Binding<TriageItem>? {
-        guard let edited = editingItem,
-              let idx = items.firstIndex(where: { $0.id == edited.id }) else { return nil }
-        return $items[idx]
-    }
-
-    // ── Empty state ───────────────────────────────────────────────────
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(Theme.primaryGradient)
-            Text("Alle Belege bearbeitet")
-                .font(.title2.weight(.semibold))
-            Text("Gehe zurück, um weitere Dokumente zu scannen.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(40)
-    }
-
-    // ── Action hint ───────────────────────────────────────────────────
-
-    private func actionHint(icon: String, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
-// =============================================================================
-// MARK: - CardView (individual swipeable card)
-// =============================================================================
+typealias TriageCardDeckView = TriageListView
 
-private struct CardView: View {
+private struct TriageItemCard: View {
     @Binding var item: TriageItem
-    let isTop:      Bool
-    let stackIndex: Int     // 0 = top, 1 = second, …
-    let onSwipe:    (SwipeDecision) -> Void
-    let onEdit:     () -> Void
+    @ObservedObject var engine: DebtEngineService
+    var onPreview: () -> Void
+    var onOptions: () -> Void
+    var onCommitSingle: () -> Void
+    var onDiscard: () -> Void
 
-    @State private var dragOffset = CGSize.zero
-    @State private var rotation:  Double = 0
-
-    // Swipe thresholds
-    private let acceptThreshold: CGFloat =  120
-    private let rejectThreshold: CGFloat = -120
-    private let maxRotation:     Double  =  18
+    var matchedDebt: Debt? {
+        guard let id = item.matchedDebtId else { return nil }
+        return engine.debts.first(where: { $0.id == id })
+    }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            cardContent
-            decisionOverlay
-        }
-        .scaleEffect(scaleForStack)
-        .offset(y: offsetYForStack)
-        .offset(dragOffset)
-        .rotationEffect(.degrees(rotation))
-        .gesture(isTop ? swipeGesture : nil)
-        .animation(.spring(response: 0.38, dampingFraction: 0.78), value: stackIndex)
-        .zIndex(isTop ? 100 : Double(100 - stackIndex))
-    }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                Button(action: onPreview) {
+                    ZStack(alignment: .bottomTrailing) {
+                        Image(uiImage: item.page.image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 80, height: 105)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8))
 
-    // ── Stack visual offset ───────────────────────────────────────────
-
-    private var scaleForStack: CGFloat {
-        max(0.88, 1.0 - CGFloat(stackIndex) * 0.04)
-    }
-
-    private var offsetYForStack: CGFloat {
-        CGFloat(stackIndex) * 10
-    }
-
-    // ── Decision overlay (4-Way contextual tint while swiping) ───────────
-
-    @ViewBuilder
-    private var decisionOverlay: some View {
-        if isTop {
-            ZStack {
-                // 👉 Rechts: Schulden
-                if dragOffset.width > 30 {
-                    HStack {
-                        Spacer()
-                        Label("Schulden", systemImage: "eurosign.circle.fill")
-                            .font(.headline.bold())
-                            .foregroundStyle(.green)
-                            .padding(12)
-                            .background(.green.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
-                            .padding(.trailing, 20)
-                            .opacity(Double(min(dragOffset.width / 120, 1.0)))
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(4)
+                            .background(.black.opacity(0.6), in: Circle())
+                            .padding(4)
                     }
                 }
-                
-                // 👈 Links: Vorrat
-                if dragOffset.width < -30 {
-                    HStack {
-                        Label("Vorrat", systemImage: "cart.fill")
-                            .font(.headline.bold())
-                            .foregroundStyle(.blue)
-                            .padding(12)
-                            .background(.blue.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
-                            .padding(.leading, 20)
-                            .opacity(Double(min(-dragOffset.width / 120, 1.0)))
-                        Spacer()
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: item.kind.icon)
+                                .font(.system(size: 10, weight: .bold))
+                            Text(item.kind.rawValue)
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(item.kind.badgeColor.opacity(0.18), in: Capsule())
+                        .foregroundStyle(item.kind.badgeColor)
+
+                        Text(item.targetStatus.displayName)
+                            .font(.system(size: 10, weight: .semibold))
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(Color.white.opacity(0.08), in: Capsule())
+                            .foregroundStyle(.secondary)
                     }
-                }
-                
-                // 👆 Oben: Hardware
-                if dragOffset.height < -30 {
-                    VStack {
-                        Label("Hardware-Akte", systemImage: "wrench.and.screwdriver.fill")
-                            .font(.headline.bold())
-                            .foregroundStyle(.purple)
-                            .padding(12)
-                            .background(.purple.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
-                            .padding(.top, 20)
-                            .opacity(Double(min(-dragOffset.height / 120, 1.0)))
-                        Spacer()
+
+                    Text(item.fileNumber.isEmpty ? "Kein AZ erkannt" : item.fileNumber)
+                        .font(.system(.subheadline, design: .monospaced).weight(.bold))
+                        .foregroundStyle(.primary)
+
+                    if let mDebt = matchedDebt {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link.circle.fill")
+                                .font(.caption)
+                            Text("Wird zu Aktenzeichen „\(mDebt.fileNumber)“ hinzugefügt")
+                                .font(.caption2.weight(.medium))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                        .foregroundStyle(.green)
                     }
+
+                    HStack(spacing: 6) {
+                        Text("Betrag:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        TextField("0,00 €", text: $item.amount)
+                            .font(.system(.body, design: .rounded).weight(.bold))
+                            .foregroundStyle(Theme.primaryAccent)
+                            .keyboardType(.numbersAndPunctuation)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+
+                    Text(item.letterDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
-                
-                // 👇 Unten: Verwerfen
-                if dragOffset.height > 30 {
-                    VStack {
-                        Spacer()
-                        Label("Verwerfen", systemImage: "trash.fill")
-                            .font(.headline.bold())
-                            .foregroundStyle(.orange)
-                            .padding(12)
-                            .background(.orange.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
-                            .padding(.bottom, 20)
-                            .opacity(Double(min(dragOffset.height / 120, 1.0)))
+
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Ziel-Modul:")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 6) {
+                    ForEach([TriageDestination.debt, .pantry, .hardware, .archive], id: \.self) { dest in
+                        Button {
+                            withAnimation(.spring(response: 0.25)) {
+                                item.destination = dest
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: dest.icon)
+                                    .font(.system(size: 9))
+                                Text(dest.rawValue.components(separatedBy: "-").first ?? dest.rawValue)
+                                    .font(.system(size: 11, weight: item.destination == dest ? .bold : .medium))
+                            }
+                            .padding(.horizontal, 8).padding(.vertical, 5)
+                            .background(
+                                item.destination == dest ? dest.color.opacity(0.25) : Color.white.opacity(0.05),
+                                in: Capsule()
+                            )
+                            .overlay(
+                                Capsule().strokeBorder(item.destination == dest ? dest.color : Color.clear, lineWidth: 1)
+                            )
+                            .foregroundStyle(item.destination == dest ? dest.color : .secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
-        }
-    }
 
-    // ── Swipe gesture ─────────────────────────────────────────────────
+            Divider()
 
-    private var swipeGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                dragOffset = value.translation
-                rotation   = Double(value.translation.width / 20) * (maxRotation / 10)
-            }
-            .onEnded { value in
-                let x = value.translation.width
-                let y = value.translation.height
-                
-                if abs(x) > abs(y) {
-                    if x >= 100 {
-                        flyOut(to: .toDebts)
-                    } else if x <= -100 {
-                        flyOut(to: .toPantry)
-                    } else {
-                        snapBack()
+            HStack(spacing: 10) {
+                Button(action: onOptions) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("Optionen & Status")
                     }
-                } else {
-                    if y <= -100 {
-                        flyOut(to: .toHardware)
-                    } else if y >= 100 {
-                        flyOut(to: .discard)
-                    } else {
-                        snapBack()
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+                    .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button(action: onDiscard) {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .padding(7)
+                        .background(Color.red.opacity(0.1), in: Circle())
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onCommitSingle) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark")
+                        Text("Übernehmen")
                     }
-                }
-            }
-    }
-
-    private func flyOut(to decision: SwipeDecision) {
-        var xTarget: CGFloat = 0
-        var yTarget: CGFloat = 0
-        
-        switch decision {
-        case .toDebts:    xTarget = 700
-        case .toPantry:   xTarget = -700
-        case .toHardware: yTarget = -800
-        case .discard:    yTarget = 800
-        }
-        
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.65)) {
-            dragOffset = CGSize(width: xTarget, height: yTarget)
-            rotation   = xTarget > 0 ? maxRotation : (xTarget < 0 ? -maxRotation : 0)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.36) {
-            onSwipe(decision)
-            dragOffset = .zero
-            rotation   = 0
-        }
-    }
-
-    private func snapBack() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            dragOffset = .zero
-            rotation   = 0
-        }
-    }
-
-    // ── Card content ──────────────────────────────────────────────────
-
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Thumbnail
-            documentThumbnail
-
-            // OCR Data
-            VStack(alignment: .leading, spacing: 14) {
-                infoRow(label: "Aktenzeichen", value: item.fileNumber.isEmpty ? "—" : item.fileNumber,
-                        icon: "doc.text.fill")
-                infoRow(label: "Betrag",
-                        value: item.amount.isEmpty ? "—" : item.amount,
-                        icon: "eurosign.circle.fill",
-                        valueColor: Theme.primaryAccent)
-                datePicker
-
-                // Raw text preview (collapsed)
-                if let raw = item.ocr?.rawText, !raw.isEmpty {
-                    rawTextPreview(raw)
-                }
-
-                // Edit button
-                Button(action: onEdit) {
-                    Label("Daten korrigieren", systemImage: "pencil")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.primaryAccent)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Theme.primaryGradient, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
-            .padding(20)
         }
-        .liquidGlassCard(cornerRadius: 24, padding: .init(top: 0, leading: 0, bottom: 0, trailing: 0))
-        .frame(maxWidth: .infinity)
-    }
-
-    @ViewBuilder
-    private var documentThumbnail: some View {
-        Image(uiImage: item.page.image)
-            .resizable()
-            .scaledToFill()
-            .frame(height: 200)
-            .clipped()
-            .clipShape(UnevenRoundedRectangle(
-                topLeadingRadius: 24,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 24
-            ))
-    }
-
-    private func infoRow(
-        label: String,
-        value: String,
-        icon: String,
-        valueColor: Color = .primary
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .foregroundStyle(Theme.primaryAccent)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.system(.body, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(valueColor)
-            }
-        }
-    }
-
-    private var datePicker: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "calendar")
-                .foregroundStyle(Theme.primaryAccent)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Briefdatum")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                DatePicker("", selection: $item.letterDate,
-                           in: ...Date(),
-                           displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-            }
-        }
-    }
-
-    private func rawTextPreview(_ text: String) -> some View {
-        DisclosureGroup {
-            ScrollView {
-                Text(text)
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-            }
-            .frame(maxHeight: 100)
-        } label: {
-            Text("OCR-Rohtext anzeigen")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
+        .padding(16)
+        .liquidGlassCard(cornerRadius: 18)
     }
 }
 
-// =============================================================================
-// MARK: - EditCardSheet
-// =============================================================================
-
-private struct EditCardSheet: View {
+private struct TriageOptionsSheet: View {
     @Binding var item: TriageItem
+    @ObservedObject var engine: DebtEngineService
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Aktenzeichen") {
-                    TextField("z. B. AZ-2024-00123", text: $item.fileNumber)
-                        .font(.system(.body, design: .monospaced))
-                }
-                Section("Betrag") {
-                    TextField("z. B. 1.234,56 €", text: $item.amount)
-                        .keyboardType(.decimalPad)
-                }
-                Section("Briefdatum") {
-                    DatePicker("Datum", selection: $item.letterDate,
-                               in: ...Date(),
-                               displayedComponents: .date)
-                }
-                if let ocr = item.ocr, !ocr.fileNumbers.isEmpty {
-                    Section("Weitere erkannte Aktenzeichen") {
-                        ForEach(ocr.fileNumbers, id: \.self) { fn in
-                            Button(fn) { item.fileNumber = fn }
-                                .font(.system(.body, design: .monospaced))
+                // Section 1: Betrag & Status
+                Section("Betrag & Status") {
+                    HStack {
+                        Text("Betrag")
+                        Spacer()
+                        TextField("z. B. 742,50 €", text: $item.amount)
+                            .multilineTextAlignment(.trailing)
+                            .keyboardType(.numbersAndPunctuation)
+                            .font(.system(.body, design: .rounded).bold())
+                            .foregroundStyle(Theme.primaryAccent)
+                    }
+
+                    Picker("Status festlegen", selection: $item.targetStatus) {
+                        ForEach(DebtStatus.allCases, id: \.self) { status in
+                            Text(status.displayName).tag(status)
+                        }
+                    }
+
+                    Picker("Dokument-Art", selection: $item.kind) {
+                        ForEach(ScannedDocumentKind.allCases) { kind in
+                            Label(kind.rawValue, systemImage: kind.icon).tag(kind)
+                        }
+                    }
+
+                    Picker("Ziel-Modul", selection: $item.destination) {
+                        ForEach(TriageDestination.allCases) { dest in
+                            Label(dest.rawValue, systemImage: dest.icon).tag(dest)
                         }
                     }
                 }
-                if let ocr = item.ocr, !ocr.euroAmounts.isEmpty {
-                    Section("Weitere erkannte Beträge") {
-                        ForEach(ocr.euroAmounts) { amount in
-                            Button(amount.raw) { item.amount = amount.raw }
+
+                // Section 2: Zuordnung zu Aktenzeichen / Inkasso
+                Section {
+                    Picker("Forderungs-Zuordnung", selection: Binding(
+                        get: { item.matchedDebtId },
+                        set: { newId in
+                            item.matchedDebtId = newId
+                            if let matched = engine.debts.first(where: { $0.id == newId }) {
+                                item.fileNumber = matched.fileNumber
+                                item.creditorName = matched.creditorName
+                            }
+                        }
+                    )) {
+                        Text("✨ Als neue Forderung anlegen").tag(UUID?.none)
+                        ForEach(engine.debts) { debt in
+                            Text("📁 \(debt.fileNumber) – \(debt.creditorName)").tag(Optional(debt.id))
+                        }
+                    }
+
+                    if let matchedId = item.matchedDebtId,
+                       let matched = engine.debts.first(where: { $0.id == matchedId }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Wird an bestehendes Aktenzeichen angehängt:")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.green)
+                            }
+                            Text("Gläubiger: \(matched.creditorName)\nBisheriger Stand: \(matched.currentPrincipal.formatted(.currency(code: "EUR")))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("Inkasso- & Aktenzeichen Zuordnung")
+                } footer: {
+                    Text("Bescheide (z.B. Mahnbescheid oder Vollstreckungsbescheid) werden der gewählten Akte als neuer Verlaufseintrag hinzugefügt.")
+                }
+
+                // Section 3: Gläubiger & Daten
+                Section("Gläubiger & Dokumentendetails") {
+                    TextField("Gläubiger / Absender", text: $item.creditorName)
+                    TextField("Aktenzeichen", text: $item.fileNumber)
+                        .font(.system(.body, design: .monospaced))
+                    DatePicker("Belegdatum", selection: $item.letterDate, displayedComponents: .date)
+                    TextField("Notizen / Bemerkung", text: $item.notes)
+                }
+
+                // Section 4: OCR Rohtext & Alternativen
+                if let ocr = item.ocr {
+                    if !ocr.fileNumbers.isEmpty {
+                        Section("Weitere erkannte Aktenzeichen") {
+                            ForEach(ocr.fileNumbers, id: \.self) { fn in
+                                Button(fn) { item.fileNumber = fn }
+                                    .font(.system(.body, design: .monospaced))
+                            }
+                        }
+                    }
+                    if !ocr.euroAmounts.isEmpty {
+                        Section("Weitere erkannte Beträge") {
+                            ForEach(ocr.euroAmounts) { amount in
+                                Button(amount.raw) { item.amount = amount.raw }
+                            }
+                        }
+                    }
+                    if !ocr.rawText.isEmpty {
+                        Section("Erkannter Belegtext (OCR)") {
+                            DisclosureGroup("Rohtext anzeigen") {
+                                ScrollView {
+                                    Text(ocr.rawText)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .frame(maxHeight: 160)
+                            }
                         }
                     }
                 }
             }
-            .navigationTitle("Beleg korrigieren")
+            .navigationTitle("Optionen & Status")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -939,10 +1148,12 @@ private struct ToastView: View {
 // MARK: - ScannerCoordinatorView (wires everything together)
 // =============================================================================
 
-/// Entry point: shows the camera, runs OCR, then presents the Triage deck.
+/// Entry point: shows the camera, photo library or file picker, runs OCR, then presents the Triage deck.
 struct ScannerCoordinatorView: View {
     @ObservedObject var engine: DebtEngineService
     @State private var showScanner = false
+    @State private var showImagePicker = false
+    @State private var showFilePicker = false
     @State private var scannedPages: [ScannedPage] = []
     @State private var isProcessingOCR = false
     @Environment(\.dismiss) private var dismiss
@@ -960,7 +1171,7 @@ struct ScannerCoordinatorView: View {
                     landingView
                 }
             }
-            .navigationTitle("Beleg scannen")
+            .navigationTitle("Beleg erfassen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -977,51 +1188,180 @@ struct ScannerCoordinatorView: View {
             )
             .ignoresSafeArea()
         }
+        .sheet(isPresented: $showImagePicker) {
+            DocumentImagePicker(sourceType: .photoLibrary) { img in
+                guard let image = img else { return }
+                Task {
+                    let page = ScannedPage(image: image)
+                    await runOCR(on: [page])
+                }
+            }
+        }
+        .sheet(isPresented: $showFilePicker) {
+            DocumentFilePicker { url in
+                guard let fileURL = url else { return }
+                Task {
+                    await handlePickedFile(at: fileURL)
+                }
+            }
+        }
     }
 
     // ── Sub-views ─────────────────────────────────────────────────────
 
     private var landingView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "doc.viewfinder.fill")
-                .font(.system(size: 72))
-                .foregroundStyle(Theme.primaryGradient)
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    Image(systemName: "doc.viewfinder.fill")
+                        .font(.system(size: 68))
+                        .foregroundStyle(Theme.primaryGradient)
 
-            Text("Briefe & Mahnungen scannen")
-                .font(.title2.weight(.semibold))
+                    Text("Dokument & Beleg erfassen")
+                        .font(.title2.weight(.bold))
 
-            Text("Halte die Kamera über den Brief.\nAktenzeichen und Betrag werden automatisch erkannt.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                    Text("Kamera nutzen oder Beleg vom Gerät hochladen.\nAktenzeichen, Beträge & Fristen werden per KI erkannt.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+                .padding(.top, 10)
 
-            Button {
-                showScanner = true
-            } label: {
-                Label("Kamera öffnen", systemImage: "camera.fill")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Theme.primaryGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
-            .padding(.horizontal, 32)
+                // Option 1: Live Kamera-Scan
+                Button {
+                    showScanner = true
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
 
-            // Test-Generator für Mac / Simulator
-            Button {
-                let samples = SampleDocumentGenerator.generateSamplePages()
-                self.scannedPages = samples
-            } label: {
-                Label("Musterdokumente testen (Mac / Simulator)", systemImage: "sparkles.rectangle.stack.fill")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Kamera-Scan")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                            Text("Brief oder Beleg direkt abfotografieren")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(Theme.primaryGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: Theme.primaryAccent.opacity(0.4), radius: 10, y: 4)
+                }
+                .buttonStyle(.plain)
+
+                // Option 2: Foto aus Mediathek
+                Button {
+                    showImagePicker = true
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.purple.opacity(0.18))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color.purple)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Foto aus Mediathek")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("Gespeichertes Foto oder Screenshot wählen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                // Option 3: PDF / Datei vom Gerät
+                Button {
+                    showFilePicker = true
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.teal.opacity(0.18))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "doc.badge.arrow.up.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color.teal)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("PDF / Datei vom Gerät")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("PDF-Dokument oder Datei aus Dateien-App laden")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                // Option 4: Test-Musterdokumente
+                Button {
+                    let samples = SampleDocumentGenerator.generateSamplePages()
+                    self.scannedPages = samples
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles.rectangle.stack.fill")
+                        Text("Musterdokumente testen (Mac / Simulator)")
+                    }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.primaryAccent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 32)
+            .padding(20)
         }
-        .padding()
     }
 
     private var ocrProgressView: some View {
@@ -1029,10 +1369,54 @@ struct ScannerCoordinatorView: View {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(Theme.primaryAccent)
-            Text("Texte werden erkannt…")
-                .font(.subheadline)
+            Text("KI-Texterkennung läuft…")
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+            Text("Aktenzeichen, Gläubiger und Beträge werden analysiert")
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .padding()
+    }
+
+    // ── Datei-Uploads verarbeiten ──────────────────────────────────────
+
+    @MainActor
+    private func handlePickedFile(at fileURL: URL) async {
+        isProcessingOCR = true
+        let ext = fileURL.pathExtension.lowercased()
+
+        if ext == "pdf" || (try? Data(contentsOf: fileURL, options: .mappedIfSafe).starts(with: [0x25, 0x50, 0x44, 0x46])) == true {
+            if let pdfDoc = PDFDocument(url: fileURL) {
+                var pages: [ScannedPage] = []
+                let count = min(pdfDoc.pageCount, 10)
+                for i in 0..<count {
+                    if let pdfPage = pdfDoc.page(at: i) {
+                        let rect = pdfPage.bounds(for: .mediaBox)
+                        let scale: CGFloat = 2.0
+                        let renderer = UIGraphicsImageRenderer(size: CGSize(width: rect.width * scale, height: rect.height * scale))
+                        let img = renderer.image { ctx in
+                            UIColor.white.set()
+                            ctx.fill(CGRect(origin: .zero, size: CGSize(width: rect.width * scale, height: rect.height * scale)))
+                            ctx.cgContext.scaleBy(x: scale, y: scale)
+                            ctx.cgContext.translateBy(x: 0, y: rect.height)
+                            ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
+                            pdfPage.draw(with: .mediaBox, to: ctx.cgContext)
+                        }
+                        pages.append(ScannedPage(image: img))
+                    }
+                }
+                if !pages.isEmpty {
+                    await runOCR(on: pages)
+                    return
+                }
+            }
+        } else if let data = try? Data(contentsOf: fileURL), let img = UIImage(data: data) {
+            let page = ScannedPage(image: img)
+            await runOCR(on: [page])
+            return
+        }
+        isProcessingOCR = false
     }
 
     // ── OCR pipeline ──────────────────────────────────────────────────

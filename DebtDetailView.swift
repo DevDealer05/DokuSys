@@ -157,6 +157,52 @@ struct DebtSummaryCard: View {
                 }
             }
             
+            if debt.status == .mahnbescheid {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "scale.3d")
+                            .font(.headline)
+                        Text("GERICHTLICHER MAHNBESCHEID")
+                            .font(.caption.weight(.heavy))
+                        Spacer()
+                        Text("2 Wochen Frist")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(.orange.opacity(0.3), in: Capsule())
+                    }
+                    Text("Das Amtsgericht hat einen Mahnbescheid zugestellt. Widerspruchsfrist beträgt 2 Wochen ab Zustellung. Prüfe die Forderung oder vereinbare eine Ratenzahlung.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.12))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.orange.opacity(0.4), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.orange)
+            } else if debt.status == .vollstreckung {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bolt.shield.fill")
+                            .font(.headline)
+                        Text("VOLLSTRECKUNGSBESCHEID VORLIEGEND")
+                            .font(.caption.weight(.heavy))
+                        Spacer()
+                        Text("Akute Pfändungsgefahr")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(.red.opacity(0.3), in: Capsule())
+                    }
+                    Text("Ein Vollstreckungsbescheid liegt vor. Es droht Zwangsvollstreckung oder Kontopfändung. Einspruchsfrist: 2 Wochen. Dringend Gläubiger kontaktieren oder P-Konto einrichten.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(Color.red.opacity(0.12))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.red.opacity(0.4), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(.red)
+            }
+
             if debt.limitationStatus.isPotentiallyExpired {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -175,6 +221,8 @@ struct DebtSummaryCard: View {
         switch status {
         case .active: return .blue
         case .negotiating: return .orange
+        case .mahnbescheid: return .orange
+        case .vollstreckung: return .red
         case .paid: return .green
         case .disputed: return .red
         case .writtenOff: return .gray
@@ -549,7 +597,7 @@ struct DetailRow: View {
 
 extension TimelineEntryType: CaseIterable {
     public static var allCases: [TimelineEntryType] {
-        return [.letterReceived, .letterSent, .payment, .fee, .interest, .note, .statusChange, .superseded]
+        return [.letterReceived, .mahnbescheid, .vollstreckungsbescheid, .letterSent, .payment, .fee, .interest, .note, .statusChange, .superseded]
     }
     
     var displayName: String {
@@ -562,6 +610,8 @@ extension TimelineEntryType: CaseIterable {
         case .note: return "Notiz"
         case .statusChange: return "Statusänderung"
         case .superseded: return "Überschrieben"
+        case .mahnbescheid: return "⚖️ Mahnbescheid (Gericht)"
+        case .vollstreckungsbescheid: return "⚡ Vollstreckungsbescheid"
         }
     }
     
@@ -575,6 +625,8 @@ extension TimelineEntryType: CaseIterable {
         case .note: return "note.text"
         case .statusChange: return "arrow.left.arrow.right"
         case .superseded: return "doc.on.doc.fill"
+        case .mahnbescheid: return "scale.3d"
+        case .vollstreckungsbescheid: return "bolt.shield.fill"
         }
     }
     
@@ -588,6 +640,8 @@ extension TimelineEntryType: CaseIterable {
         case .note: return .gray
         case .statusChange: return .purple
         case .superseded: return .secondary
+        case .mahnbescheid: return .orange
+        case .vollstreckungsbescheid: return .red
         }
     }
 }

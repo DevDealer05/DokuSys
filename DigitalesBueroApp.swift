@@ -142,6 +142,15 @@ struct AuthenticatedScopeView: View {
 
     // MARK: Deep-link handler
     private func handleDeepLink(_ url: URL) {
+        // 1. Auth Callback (digitalesbuero://auth or magic link / OAuth tokens)
+        if (url.scheme?.lowercased() == "digitalesbuero" && url.host?.lowercased() == "auth") ||
+            url.fragment?.contains("access_token") == true ||
+            url.query?.contains("access_token") == true {
+            authService.handleDeepLinkURL(url)
+            return
+        }
+
+        // 2. Household invitation deep-link
         guard
             url.scheme?.lowercased() == "schulden",
             url.host?.lowercased()   == "join",
@@ -223,8 +232,8 @@ struct AppRootView: View {
                     Color.clear.frame(height: 90)
                 }
                 .safeAreaInset(edge: .top) {
-                    // Dev mode orange banner at the very top
-                    if devModeStore.isDevMode {
+                    // Dev mode banner only shown if user explicitly turned it on in Settings
+                    if devModeStore.isDevMode && devModeStore.showDevBanner {
                         DevModeBanner()
                             .environmentObject(devModeStore)
                     }
@@ -380,6 +389,8 @@ struct OverviewView: View {
     @StateObject private var householdService:  RealtimeHouseholdService
     @State private var showSettingsSheet: Bool = false
 
+    @AppStorage("debt_overview_grouping") private var groupByCreditor: Bool = false
+
     init(
         currentUserId: UUID = UUID(),
         householdId: UUID = UUID(),
@@ -429,12 +440,74 @@ struct OverviewView: View {
             }
 
             // ── Debt list ──────────────────────────────────────────────
-            Section {
-                if debtEngine.debts.isEmpty {
+            if debtEngine.debts.isEmpty {
+                Section {
                     emptyDebtsState
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                } else {
+                } header: {
+                    HStack {
+                        Text("Forderungen")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("0")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.primaryAccent)
+                            .padding(.horizontal, 8).padding(.vertical, 2)
+                            .background(Theme.primaryAccent.opacity(0.12), in: Capsule())
+                    }
+                    .textCase(nil)
+                }
+            } else if groupByCreditor {
+                let grouped = Dictionary(grouping: debtEngine.debts, by: { $0.creditorName.isEmpty ? "Unbekannt" : $0.creditorName })
+                let sortedCreditors = grouped.keys.sorted()
+                
+                Section {
+                    creditorFilterToggle
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.init(top: 0, leading: 16, bottom: 4, trailing: 16))
+                }
+
+                ForEach(sortedCreditors, id: \.self) { creditor in
+                    let debtsForCreditor = grouped[creditor] ?? []
+                    let creditorSum = debtsForCreditor.reduce(Decimal.zero) { $0 + $1.currentPrincipal }
+                    Section {
+                        ForEach(debtsForCreditor.sorted { $0.currentPrincipal > $1.currentPrincipal }) { debt in
+                            NavigationLink(destination: DebtDetailView(debt: debt)) {
+                                DebtRowView(debt: debt, onExport: onExportDebt)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(.init(top: 3, leading: 16, bottom: 3, trailing: 16))
+                        }
+                    } header: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "building.2.crop.circle.fill")
+                                .foregroundStyle(Theme.primaryAccent)
+                            Text(creditor)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Text(formatCurrency(creditorSum))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Theme.primaryAccent)
+                            Text("(\(debtsForCreditor.count))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .textCase(nil)
+                    }
+                }
+            } else {
+                Section {
+                    creditorFilterToggle
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.init(top: 0, leading: 16, bottom: 4, trailing: 16))
+
                     ForEach(debtEngine.debts.sorted { $0.currentPrincipal > $1.currentPrincipal }) { debt in
                         NavigationLink(destination: DebtDetailView(debt: debt)) {
                             DebtRowView(debt: debt, onExport: onExportDebt)
@@ -444,20 +517,20 @@ struct OverviewView: View {
                         .listRowSeparator(.hidden)
                         .listRowInsets(.init(top: 3, leading: 16, bottom: 3, trailing: 16))
                     }
+                } header: {
+                    HStack {
+                        Text("Forderungen")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(debtEngine.debts.count)")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.primaryAccent)
+                            .padding(.horizontal, 8).padding(.vertical, 2)
+                            .background(Theme.primaryAccent.opacity(0.12), in: Capsule())
+                    }
+                    .textCase(nil)
                 }
-            } header: {
-                HStack {
-                    Text("Forderungen")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(debtEngine.debts.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Theme.primaryAccent)
-                        .padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(Theme.primaryAccent.opacity(0.12), in: Capsule())
-                }
-                .textCase(nil)
             }
         }
         .listStyle(.plain)
@@ -467,13 +540,17 @@ struct OverviewView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if SubscriptionManager.shared.isCreator {
-                    Text("ROOT")
-                        .font(.system(size: 9, weight: .black))
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Theme.primaryAccent, in: Capsule())
-                        .foregroundStyle(.white)
-                } else if SubscriptionManager.shared.isCommercialMode {
-                    Text("COMMERCIAL")
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 8, weight: .bold))
+                        Text("PRO")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Theme.primaryGradient, in: Capsule())
+                    .foregroundStyle(.white)
+                } else if SubscriptionManager.shared.isPro {
+                    Text("PRO")
                         .font(.system(size: 8, weight: .bold))
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Color.green.opacity(0.2), in: Capsule())
@@ -503,6 +580,32 @@ struct OverviewView: View {
             householdService.stop()
         }
         .animation(.spring(response: 0.4), value: debtEngine.debts.map(\.id))
+    }
+
+    private var creditorFilterToggle: some View {
+        HStack {
+            Text(groupByCreditor ? "Nach Gläubiger gruppiert" : "Sortiert nach Betrag")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                withAnimation(.spring(response: 0.35)) {
+                    groupByCreditor.toggle()
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: groupByCreditor ? "list.bullet.indent" : "arrow.up.arrow.down")
+                    Text(groupByCreditor ? "Nach Betrag" : "Nach Gläubiger")
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .foregroundStyle(Theme.primaryAccent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
     }
 
     // ── Total balance card ─────────────────────────────────────────────
@@ -631,6 +734,20 @@ private struct DebtRowView: View {
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
 
+                    if debt.status == .mahnbescheid {
+                        Text("⚖️ Mahnbescheid")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.85), in: Capsule())
+                    } else if debt.status == .vollstreckung {
+                        Text("⚡ Vollstreckung")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.red.opacity(0.9), in: Capsule())
+                    }
+
                     if debt.limitationStatus.isPotentiallyExpired {
                         Text(debt.limitationStatus.hint)
                             .font(.system(size: 9, weight: .medium))
@@ -695,11 +812,13 @@ private struct DebtRowView: View {
 
     private var statusColor: Color {
         switch debt.status {
-        case .active:      return .orange
-        case .negotiating: return .blue
-        case .paid:        return .green
-        case .disputed:    return .red
-        case .writtenOff:  return .gray
+        case .active:          return .blue
+        case .negotiating:     return .orange
+        case .mahnbescheid:    return .orange
+        case .vollstreckung:   return .red
+        case .paid:            return .green
+        case .disputed:        return .red
+        case .writtenOff:      return .gray
         }
     }
 

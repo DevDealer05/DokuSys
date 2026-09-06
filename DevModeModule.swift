@@ -26,6 +26,7 @@ struct BuildInfo {
 
 final class DevModeStore: ObservableObject {
     @AppStorage("dev_mode_enabled") var isDevMode: Bool = false
+    @AppStorage("show_dev_banner") var showDevBanner: Bool = false
     @AppStorage("gemini_api_key") var geminiApiKey: String = ""
     @AppStorage("ai_agent_url") var aiAgentUrl: String = "https://ucmkbhmtdpbxsbahzahj.supabase.co/functions/v1/ai-agent"
     @AppStorage("github_repo") var githubRepo: String = "DevDealer05/DokuSys"
@@ -46,67 +47,71 @@ struct DevModeBanner: View {
     @State private var showAIChat: Bool = false
     @State private var showConsole: Bool = false
 
+    @ViewBuilder
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hammer.fill")
-            Text("ENTWICKLER-MODUS")
-                .font(.caption.bold())
-                .kerning(1)
-            Spacer()
-            Button {
-                showConsole = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "terminal.fill")
-                    Text("Konsole")
-                        .font(.caption.bold())
-                    if RemoteLogServer.shared.isRunning {
-                        Image(systemName: "wifi")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.green)
+        if store.isDevMode && store.showDevBanner {
+            HStack(spacing: 8) {
+                Image(systemName: "hammer.fill")
+                Text("ENTWICKLER")
+                    .font(.caption.bold())
+                    .kerning(1)
+                Spacer()
+                Button {
+                    showConsole = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "terminal.fill")
+                        Text("Konsole")
+                            .font(.caption.bold())
+                        if RemoteLogServer.shared.isRunning {
+                            Image(systemName: "wifi")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.green)
+                        }
+                        if logger.errorCount > 0 {
+                            Text("\(logger.errorCount)")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 4).padding(.vertical, 1)
+                                .background(Color.red, in: Capsule())
+                        }
                     }
-                    if logger.errorCount > 0 {
-                        Text("\(logger.errorCount)")
-                            .font(.system(size: 9, weight: .black))
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Color.red, in: Capsule())
-                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.3), in: Capsule())
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.black.opacity(0.3), in: Capsule())
-            }
 
-            Button {
-                showAIChat = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                    Text("KI-Chat")
-                        .font(.caption.bold())
+                Button {
+                    showAIChat = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text("KI-Chat")
+                            .font(.caption.bold())
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.25), in: Capsule())
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.25), in: Capsule())
+                Button {
+                    withAnimation { store.showDevBanner = false }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.white.opacity(0.8))
+                }
             }
-            Button {
-                withAnimation { store.isDevMode = false }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.white.opacity(0.8))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.orange.opacity(0.92))
+            .foregroundColor(.white)
+            .sheet(isPresented: $showAIChat) {
+                AIChatSheet()
             }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.orange.opacity(0.92))
-        .foregroundColor(.white)
-        .sheet(isPresented: $showAIChat) {
-            AIChatSheet()
-        }
-        .sheet(isPresented: $showConsole) {
-            ConsoleLogView()
+            .sheet(isPresented: $showConsole) {
+                ConsoleLogView()
+            }
         }
     }
+
 }
 
 // MARK: - LiveModeBadge
