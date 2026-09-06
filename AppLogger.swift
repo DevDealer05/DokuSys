@@ -12,16 +12,16 @@ import UIKit
 // MARK: - Log Level
 // =============================================================================
 
-public enum LogLevel: String, CaseIterable, Codable, Identifiable {
+enum LogLevel: String, CaseIterable, Codable, Identifiable {
     case debug   = "DEBUG"
     case info    = "INFO"
     case warning = "WARN"
     case error   = "ERROR"
     case success = "SUCCESS"
 
-    public var id: String { rawValue }
+    var id: String { rawValue }
 
-    public var displayName: String {
+    var displayName: String {
         switch self {
         case .debug:   return "Debug"
         case .info:    return "Info"
@@ -31,7 +31,7 @@ public enum LogLevel: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    public var icon: String {
+    var icon: String {
         switch self {
         case .debug:   return "ant.fill"
         case .info:    return "info.circle.fill"
@@ -41,7 +41,7 @@ public enum LogLevel: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    public var color: Color {
+    var color: Color {
         switch self {
         case .debug:   return .cyan
         case .info:    return .blue
@@ -56,15 +56,15 @@ public enum LogLevel: String, CaseIterable, Codable, Identifiable {
 // MARK: - Log Entry Model
 // =============================================================================
 
-public struct LogEntry: Identifiable, Codable, Equatable {
-    public let id: UUID
-    public let timestamp: Date
-    public let level: LogLevel
-    public let category: String
-    public let message: String
-    public let details: String?
+struct LogEntry: Identifiable, Codable, Equatable {
+    let id: UUID
+    let timestamp: Date
+    let level: LogLevel
+    let category: String
+    let message: String
+    let details: String?
 
-    public init(
+    init(
         id: UUID = UUID(),
         timestamp: Date = Date(),
         level: LogLevel,
@@ -80,13 +80,13 @@ public struct LogEntry: Identifiable, Codable, Equatable {
         self.details = details
     }
 
-    public var formattedTimestamp: String {
+    var formattedTimestamp: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         return formatter.string(from: timestamp)
     }
 
-    public var fullTextLine: String {
+    var fullTextLine: String {
         var line = "[\(formattedTimestamp)] [\(level.rawValue)] [\(category)] \(message)"
         if let d = details, !d.isEmpty {
             line += "\n    Details: \(d)"
@@ -99,22 +99,16 @@ public struct LogEntry: Identifiable, Codable, Equatable {
 // MARK: - AppLogger Service
 // =============================================================================
 
-@MainActor
-public final class AppLogger: ObservableObject {
-    public static let shared = AppLogger()
+final class AppLogger: ObservableObject {
+    static let shared = AppLogger()
 
-    @Published public private(set) var entries: [LogEntry] = []
-    @Published public var errorCount: Int = 0
-    @Published public var warningCount: Int = 0
+    @Published private(set) var entries: [LogEntry] = []
+    @Published var errorCount: Int = 0
+    @Published var warningCount: Int = 0
 
     private let maxEntries = 1500
-    private let logFileURL: URL
 
     private init() {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
-        self.logFileURL = docs.appendingPathComponent("app_console.log")
-
-        // Initial system startup log
         logStartupBanner()
     }
 
@@ -134,7 +128,7 @@ public final class AppLogger: ObservableObject {
 
     // ── Logging Methods ───────────────────────────────────────────────
 
-    public func log(
+    func log(
         level: LogLevel,
         category: String,
         message: String,
@@ -147,60 +141,77 @@ public final class AppLogger: ObservableObject {
             details: details
         )
 
+        print("[\(entry.formattedTimestamp)] [\(level.rawValue)] [\(category)] \(message)")
+        if let d = details, !d.isEmpty {
+            print("  ↳ \(d)")
+        }
+
+        if Thread.isMainThread {
+            self.appendEntry(entry)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.appendEntry(entry)
+            }
+        }
+    }
+
+    private func appendEntry(_ entry: LogEntry) {
         entries.append(entry)
         if entries.count > maxEntries {
             entries.removeFirst(entries.count - maxEntries)
         }
 
-        if level == .error {
+        if entry.level == .error {
             errorCount += 1
-        } else if level == .warning {
+        } else if entry.level == .warning {
             warningCount += 1
-        }
-
-        // Print to Xcode/system console as well
-        print("[\(entry.formattedTimestamp)] [\(level.rawValue)] [\(category)] \(message)")
-        if let d = details, !d.isEmpty {
-            print("  ↳ \(d)")
         }
     }
 
-    public func debug(_ category: String, _ message: String, details: String? = nil) {
+    func debug(_ category: String, _ message: String, details: String? = nil) {
         log(level: .debug, category: category, message: message, details: details)
     }
 
-    public func info(_ category: String, _ message: String, details: String? = nil) {
+    func info(_ category: String, _ message: String, details: String? = nil) {
         log(level: .info, category: category, message: message, details: details)
     }
 
-    public func warn(_ category: String, _ message: String, details: String? = nil) {
+    func warn(_ category: String, _ message: String, details: String? = nil) {
         log(level: .warning, category: category, message: message, details: details)
     }
 
-    public func error(_ category: String, _ message: String, details: String? = nil) {
+    func error(_ category: String, _ message: String, details: String? = nil) {
         log(level: .error, category: category, message: message, details: details)
     }
 
-    public func success(_ category: String, _ message: String, details: String? = nil) {
+    func success(_ category: String, _ message: String, details: String? = nil) {
         log(level: .success, category: category, message: message, details: details)
     }
 
     // ── Actions ───────────────────────────────────────────────────────
 
-    public func clear() {
-        withAnimation {
-            entries.removeAll()
-            errorCount = 0
-            warningCount = 0
+    func clear() {
+        let action = { [weak self] in
+            guard let self = self else { return }
+            self.entries.removeAll()
+            self.errorCount = 0
+            self.warningCount = 0
+            self.appendEntry(LogEntry(level: .info, category: "Konsole", message: "Log-Puffer geleert."))
         }
-        self.info("Konsole", "Log-Puffer geleert.")
+        if Thread.isMainThread {
+            withAnimation { action() }
+        } else {
+            DispatchQueue.main.async {
+                withAnimation { action() }
+            }
+        }
     }
 
-    public func exportLogText() -> String {
+    func exportLogText() -> String {
         entries.map(\.fullTextLine).joined(separator: "\n")
     }
 
-    public func createExportFile() -> URL? {
+    func createExportFile() -> URL? {
         let text = exportLogText()
         let filename = "DigitalesBuero_Log_\(Date().formatted(date: .numeric, time: .omitted).replacingOccurrences(of: ".", with: "-")).txt"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
@@ -214,7 +225,7 @@ public final class AppLogger: ObservableObject {
         }
     }
 
-    public func generateSampleLogs() {
+    func generateSampleLogs() {
         self.info("System", "Test-Logs wurden angefordert.")
         self.debug("DMS", "Cache-Überprüfung für 12 Dokumente abgeschlossen.")
         self.success("Auth", "Sitzung erfolgreich validiert.")
@@ -228,7 +239,7 @@ public final class AppLogger: ObservableObject {
 // MARK: - ConsoleLogView (In-App Terminal & Error Viewer)
 // =============================================================================
 
-public struct ConsoleLogView: View {
+struct ConsoleLogView: View {
     @ObservedObject private var logger = AppLogger.shared
     @Environment(\.dismiss) private var dismiss
 
@@ -240,7 +251,7 @@ public struct ConsoleLogView: View {
     @State private var showCopiedToast: Bool = false
     @State private var selectedEntryForDetail: LogEntry? = nil
 
-    public init() {}
+    init() {}
 
     private var filteredEntries: [LogEntry] {
         logger.entries.filter { entry in

@@ -46,6 +46,7 @@ jobs:
           xcodebuild -list || true
 
           echo "=== Building iOS App Bundle ==="
+          set -o pipefail
           xcodebuild build \
             -scheme DigitalesBuero \
             -destination 'generic/platform=iOS' \
@@ -54,24 +55,14 @@ jobs:
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="-" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES || \
-          xcodebuild build \
-            -scheme AppModule \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="-" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES || \
-          xcodebuild build \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="-" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            AD_HOC_CODE_SIGNING_ALLOWED=YES 2>&1 | tee xcodebuild.log || {
+              echo "## ❌ Build Error Log" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -E 'error:|fatal:' xcodebuild.log | head -40 >> $GITHUB_STEP_SUMMARY || true
+              tail -n 60 xcodebuild.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              exit 1
+            }
 
       - name: Package IPA
         id: package
