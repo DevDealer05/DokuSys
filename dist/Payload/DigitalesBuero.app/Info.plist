@@ -2,39 +2,78 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key>
-    <string>de.kim.DigitalesBuero</string>
-    <key>CFBundleName</key>
-    <string>Digitales Buero</string>
-    <key>CFBundleDisplayName</key>
-    <string>Digitales Buero</string>
-    <key>CFBundleExecutable</key>
-    <string>DigitalesBuero</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleVersion</key>
-    <string>4</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.3</string>
-    <key>GIT_COMMIT_SHA</key>
-    <string>5be1926</string>
-    <key>BUILD_DATE</key>
-    <string>2026-09-06T17:34:01Z</string>
-    <key>MinimumOSVersion</key>
-    <string>17.0</string>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>arm64</string>
-    </array>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-    </array>
-    <key>NSCameraUsageDescription</key>
-    <string>Kamera zum Scannen von Briefen und Belegen</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Fotos zum Dokumenten-Archiv hinzufügen</string>
+	<key>BUILD_DATE</key>
+	<string>2026-09-06T18:32:30Z</string>
+	<key>CFBundleDisplayName</key>
+	<string>Digitales Buero</string>
+	<key>CFBundleExecutable</key>
+	<string>DigitalesBuero</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon60x60</string>
+	<key>CFBundleIconFiles</key>
+	<array>
+		<string>AppIcon60x60</string>
+		<string>AppIcon76x76</string>
+		<string>AppIcon83.5x83.5</string>
+		<string>icon</string>
+	</array>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>AppIcon60x60</string>
+			</array>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
+		</dict>
+	</dict>
+	<key>CFBundleIcons~ipad</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>AppIcon60x60</string>
+				<string>AppIcon76x76</string>
+				<string>AppIcon83.5x83.5</string>
+			</array>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
+		</dict>
+	</dict>
+	<key>CFBundleIdentifier</key>
+	<string>de.kim.DigitalesBuero</string>
+	<key>CFBundleName</key>
+	<string>Digitales Buero</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>7</string>
+	<key>GIT_COMMIT_SHA</key>
+	<string>6e133fe</string>
+	<key>MinimumOSVersion</key>
+	<string>17.0</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kamera zum Scannen von Briefen und Belegen</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Fotos zum Dokumenten-Archiv hinzufügen</string>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>

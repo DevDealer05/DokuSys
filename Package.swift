@@ -17,9 +17,9 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "de.kim.DigitalesBuero",
             teamIdentifier: "",
-            displayVersion: "1.0.3",
-            bundleVersion: "4",
-            appIcon: .placeholder(icon: .coins),
+            displayVersion: "1.1.0",
+            bundleVersion: "7",
+            appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .pad,
@@ -32,7 +32,9 @@ let package = Package(
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
             capabilities: [
-                .camera(purposeString: "Kamera zum Scannen von Briefen und Belegen")
+                .camera(purposeString: "Kamera zum Scannen von Briefen und Belegen"),
+                .photoLibrary(purposeString: "Fotos zum Dokumenten-Archiv hinzufügen"),
+                .faceID(purposeString: "Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen")
             ]
         )
     ],

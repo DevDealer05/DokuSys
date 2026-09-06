@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'DigitalesBuero' in project 'DigitalesBuero' (no dependencies)

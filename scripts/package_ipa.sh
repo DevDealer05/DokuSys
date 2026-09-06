@@ -73,15 +73,81 @@ else
     <string>Kamera zum Scannen von Briefen und Belegen</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Fotos zum Dokumenten-Archiv hinzufügen</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen</string>
 </dict>
 </plist>
 EOF
 fi
 
+if [ -f "dist/Payload/DigitalesBuero.app/Info.plist" ]; then
+    PLIST="dist/Payload/DigitalesBuero.app/Info.plist"
+
+    # Permissions
+    /usr/libexec/PlistBuddy -c "Add :NSFaceIDUsageDescription string 'Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen'" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :NSFaceIDUsageDescription 'Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Kamera zum Scannen von Briefen und Belegen'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Fotos zum Dokumenten-Archiv hinzufügen'" "$PLIST" 2>/dev/null || true
+
+    # AppIcon declarations for iOS SpringBoard / Home Screen
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string 'AppIcon60x60'" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile 'AppIcon60x60'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string 'AppIcon'" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :CFBundleIconName 'AppIcon'" "$PLIST" 2>/dev/null || true
+
+    # Legacy array
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string 'AppIcon60x60'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string 'AppIcon76x76'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string 'AppIcon83.5x83.5'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles: string 'icon'" "$PLIST" 2>/dev/null || true
+
+    # CFBundleIcons (iPhone)
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons dict" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon dict" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName string 'AppIcon'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles array" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles: string 'AppIcon60x60'" "$PLIST" 2>/dev/null || true
+
+    # CFBundleIcons~ipad (iPad)
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad dict" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon dict" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconName string 'AppIcon'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles array" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string 'AppIcon60x60'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string 'AppIcon76x76'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string 'AppIcon83.5x83.5'" "$PLIST" 2>/dev/null || true
+fi
+
+# Compile Assets.xcassets to Assets.car if actool is available
+if [ -d "Assets.xcassets" ] && xcrun --find actool &>/dev/null; then
+    echo "Compiling Assets.car with actool..."
+    xcrun actool Assets.xcassets \
+        --compile dist/Payload/DigitalesBuero.app \
+        --platform iphoneos \
+        --minimum-deployment-target 17.0 \
+        --app-icon AppIcon \
+        --output-partial-info-plist dist/icon_partial.plist 2>/dev/null || true
+    if [ -f "dist/icon_partial.plist" ]; then
+        /usr/libexec/PlistBuddy -x -c "Merge dist/icon_partial.plist" dist/Payload/DigitalesBuero.app/Info.plist 2>/dev/null || true
+    fi
+fi
+
 if [ -f "icon.png" ]; then
-    echo "Adding app icon to bundle"
-    cp icon.png dist/Payload/DigitalesBuero.app/AppIcon60x60@2x.png
-    cp icon.png dist/Payload/DigitalesBuero.app/AppIcon76x76@2x~ipad.png
+    echo "Adding all icon resolutions to app bundle..."
+    sips -z 120 120 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon60x60@2x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon60x60@2x.png
+    sips -z 180 180 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon60x60@3x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon60x60@3x.png
+    sips -z 152 152 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon76x76@2x~ipad.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon76x76@2x~ipad.png
+    sips -z 167 167 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon83.5x83.5@2x~ipad.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon83.5x83.5@2x~ipad.png
+    sips -z 120 120 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon@2x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon@2x.png
+    sips -z 180 180 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon@3x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon@3x.png
+    sips -z 60 60 icon.png --out dist/Payload/DigitalesBuero.app/AppIcon.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/AppIcon.png
+    sips -z 120 120 icon.png --out dist/Payload/DigitalesBuero.app/Icon-60@2x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/Icon-60@2x.png
+    sips -z 180 180 icon.png --out dist/Payload/DigitalesBuero.app/Icon-60@3x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/Icon-60@3x.png
+    sips -z 120 120 icon.png --out dist/Payload/DigitalesBuero.app/icon@2x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/icon@2x.png
+    sips -z 180 180 icon.png --out dist/Payload/DigitalesBuero.app/icon@3x.png >/dev/null 2>&1 || cp icon.png dist/Payload/DigitalesBuero.app/icon@3x.png
+    cp icon.png dist/Payload/DigitalesBuero.app/icon.png
+    cp icon.png dist/Payload/DigitalesBuero.app/AppIcon1024x1024.png
 fi
 
 echo "Ad-hoc codesigning app bundle..."

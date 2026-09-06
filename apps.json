@@ -5,18 +5,26 @@
     "name": "Digitales Buero",
     "bundleIdentifier": "de.kim.DigitalesBuero",
     "developerName": "Kim",
-    "subtitle": "Schulden und Haushalt Manager",
-    "version": "1.0.3",
-    "versionDate": "2026-09-06T17:34:44Z",
-    "versionDescription": "Build 4 - Automatisch gebaut via GitHub Actions.",
+    "subtitle": "Schulden, Dokumente & Finanzen",
+    "version": "1.1.0",
+    "versionDate": "2026-09-06T18:33:21Z",
+    "versionDescription": "v1.1.0 (Build 7, 6e133fe): fix(build): resolve Substring type in CommercialModule, AnyShapeStyle in DocumentArchiveModule, and exhaustive switch in LiquidGlass",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
-    "localizedDescription": "Digitales Buero - Haushalt, Schulden, Scanner und KI-Assistent.",
+    "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 1756604,
+    "size": 2345448,
     "permissions": [
-      {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"}
+      {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
+      {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
+      {"type": "faceid", "usageDescription": "Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen"}
     ]
   }],
-  "news": []
+  "news": [{
+    "title": "Digitales Buero v1.1.0 (Build 7)",
+    "identifier": "release-7-6e133fe",
+    "caption": "fix(build): resolve Substring type in CommercialModule, AnyShapeStyle in DocumentArchiveModule, and exhaustive switch in LiquidGlass",
+    "date": "2026-09-06T18:33:21Z",
+    "tintColor": "6E5BE8"
+  }]
 }

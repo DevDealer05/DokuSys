@@ -104,27 +104,26 @@ struct PencilKitSignatureCanvas: UIViewRepresentable {
     // ── Snapshot for PDF (converts white→black for export) ────────────
 
     /// Renders the drawing as a `UIImage` suitable for embedding in a PDF.
-    /// Inverts to black ink on transparent background.
+    /// Renders pure black strokes on a clean transparent background.
     static func exportImage(from drawing: PKDrawing, size: CGSize, scale: CGFloat = 2) -> UIImage? {
         guard !drawing.strokes.isEmpty else { return nil }
         let bounds = CGRect(origin: .zero, size: size)
+        let raw = drawing.image(from: bounds, scale: scale)
+        guard let cgImage = raw.cgImage else { return raw }
 
-        // Render as white-on-dark first
-        var raw = drawing.image(from: bounds, scale: scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = false
 
-        // Invert to black-on-transparent for PDF
-        if let inverted = invertedForPDF(raw) { raw = inverted }
-        return raw
-    }
-
-    private static func invertedForPDF(_ source: UIImage) -> UIImage? {
-        guard let ciImage = CIImage(image: source) else { return nil }
-        let filter = CIFilter(name: "CIColorInvert")
-        filter?.setValue(ciImage, forKey: kCIInputImageKey)
-        guard let output = filter?.outputImage else { return nil }
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(output, from: output.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { ctx in
+            let cgCtx = ctx.cgContext
+            cgCtx.translateBy(x: 0, y: size.height)
+            cgCtx.scaleBy(x: 1.0, y: -1.0)
+            cgCtx.clip(to: CGRect(origin: .zero, size: size), mask: cgImage)
+            cgCtx.setFillColor(UIColor.black.cgColor)
+            cgCtx.fill(CGRect(origin: .zero, size: size))
+        }
     }
 }
 
@@ -663,11 +662,50 @@ private final class MailableItem: NSObject, UIActivityItemSource {
 struct ExportCoordinatorView: View {
     let proposal: InstallmentProposal
 
+    // Editable proposal fields
+    @State private var creditorName: String
+    @State private var creditorAddress: String
+    @State private var monthlyRateText: String
+    @State private var numberOfMonths: Int
+    @State private var startDate: Date
+    @State private var reasonText: String
+
     @State private var drawing:      PKDrawing  = PKDrawing()
     @State private var pdfData:      Data?
     @State private var isRendering:  Bool       = false
     @State private var showShare:    Bool       = false
     @State private var renderError:  String?
+
+    init(proposal: InstallmentProposal) {
+        self.proposal = proposal
+        _creditorName = State(initialValue: proposal.creditorName)
+        _creditorAddress = State(initialValue: proposal.creditorAddress ?? "")
+        _monthlyRateText = State(initialValue: "\(proposal.monthlyRate)")
+        _numberOfMonths = State(initialValue: proposal.numberOfMonths)
+        _startDate = State(initialValue: proposal.startDate)
+        _reasonText = State(initialValue: proposal.reason)
+    }
+
+    private var currentProposal: InstallmentProposal {
+        let cleanRateStr = monthlyRateText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        let rate = Decimal(string: cleanRateStr) ?? proposal.monthlyRate
+        return InstallmentProposal(
+            fileNumber: proposal.fileNumber,
+            creditorName: creditorName.trimmingCharacters(in: .whitespaces).isEmpty ? proposal.creditorName : creditorName,
+            creditorAddress: creditorAddress.trimmingCharacters(in: .whitespaces).isEmpty ? nil : creditorAddress,
+            totalAmount: proposal.totalAmount,
+            monthlyRate: rate,
+            numberOfMonths: max(1, numberOfMonths),
+            startDate: startDate,
+            reason: reasonText,
+            senderName: proposal.senderName,
+            senderAddress: proposal.senderAddress,
+            senderEmail: proposal.senderEmail,
+            senderPhone: proposal.senderPhone,
+            documentDate: proposal.documentDate,
+            documentId: proposal.documentId
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -676,6 +714,9 @@ struct ExportCoordinatorView: View {
 
                     // ── Document preview card ──────────────────────────
                     documentPreviewCard
+
+                    // ── Editable Proposal Details ──────────────────────
+                    proposalCustomizationCard
 
                     // ── Signature canvas ───────────────────────────────
                     SignatureCanvasView(drawing: $drawing)
@@ -702,11 +743,11 @@ struct ExportCoordinatorView: View {
             }
             .sheet(isPresented: $showShare) {
                 if let data = pdfData {
-                    let filename = "Ratenzahlung_\(proposal.fileNumber)_\(proposal.documentId.uuidString.prefix(6)).pdf"
+                    let filename = "Ratenzahlung_\(currentProposal.fileNumber)_\(currentProposal.documentId.uuidString.prefix(6)).pdf"
                     let url = saveToTemp(data: data, filename: filename)
                     ShareSheet(
                         items: [url as Any],
-                        subject: "Ratenzahlungsantrag AZ \(proposal.fileNumber)",
+                        subject: "Ratenzahlungsantrag AZ \(currentProposal.fileNumber)",
                         onResult: { _ in showShare = false }
                     )
                     .ignoresSafeArea()
@@ -727,27 +768,103 @@ struct ExportCoordinatorView: View {
 
     private var documentPreviewCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Vorschau", systemImage: "doc.richtext.fill")
+            Label("Vorschau (A4 Dokument)", systemImage: "doc.richtext.fill")
                 .font(.subheadline.weight(.semibold))
 
-            // Inline scaled preview
-            RatenzahlungsPDFTemplate(
-                proposal: proposal,
-                signatureImage: drawing.strokes.isEmpty
-                    ? nil
-                    : PencilKitSignatureCanvas.exportImage(
-                        from: drawing,
-                        size: CGSize(width: 220, height: 80)
-                    )
-            )
-            .scaleEffect(0.45, anchor: .topLeading)
-            .frame(
-                width:  595 * 0.45,
-                height: 842 * 0.45
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+            // Centered inline scaled preview
+            HStack {
+                Spacer()
+                RatenzahlungsPDFTemplate(
+                    proposal: currentProposal,
+                    signatureImage: drawing.strokes.isEmpty
+                        ? nil
+                        : PencilKitSignatureCanvas.exportImage(
+                            from: drawing,
+                            size: CGSize(width: 220, height: 80)
+                        )
+                )
+                .frame(width: 595, height: 842)
+                .scaleEffect(0.48, anchor: .center)
+                .frame(
+                    width:  595 * 0.48,
+                    height: 842 * 0.48
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
+                Spacer()
+            }
             .frame(maxWidth: .infinity)
+        }
+        .liquidGlassCard()
+        .padding(.horizontal)
+    }
+
+    // ── Editable Fields Card ──────────────────────────────────────────
+
+    private var proposalCustomizationCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Label("Antrag anpassen", systemImage: "pencil.and.list.clipboard")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.primaryAccent)
+
+            // Empfänger / Gläubiger
+            VStack(alignment: .leading, spacing: 8) {
+                Text("GLÄUBIGER & EMPFÄNGER")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                TextField("Gläubiger Name", text: $creditorName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Gläubiger-Adresse (Straße, Hausnr., PLZ, Ort)", text: $creditorAddress, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            Divider()
+
+            // Raten & Laufzeit
+            VStack(alignment: .leading, spacing: 8) {
+                Text("RATENPLAN")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Text("Monatliche Rate:")
+                        .font(.subheadline)
+                    Spacer()
+                    TextField("Rate", text: $monthlyRateText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                        .textFieldStyle(.roundedBorder)
+                    Text("€")
+                        .font(.subheadline)
+                }
+
+                Stepper(value: $numberOfMonths, in: 1...72) {
+                    HStack {
+                        Text("Laufzeit:")
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(numberOfMonths) Monate")
+                            .font(.subheadline.bold())
+                    }
+                }
+
+                DatePicker("Erste Rate am", selection: $startDate, displayedComponents: .date)
+                    .font(.subheadline)
+            }
+
+            Divider()
+
+            // Begründung / Härtefall
+            VStack(alignment: .leading, spacing: 8) {
+                Text("BEGRÜNDUNGSTEXT")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                TextField("Begründung (z.B. Vorübergehende finanzielle Notlage...)", text: $reasonText, axis: .vertical)
+                    .lineLimit(3...5)
+                    .textFieldStyle(.roundedBorder)
+            }
         }
         .liquidGlassCard()
         .padding(.horizontal)
@@ -811,7 +928,7 @@ struct ExportCoordinatorView: View {
                   )
 
             if let data = await PDFDocumentRenderer.render(
-                proposal: proposal,
+                proposal: currentProposal,
                 signatureImage: sigImage
             ) {
                 pdfData   = data

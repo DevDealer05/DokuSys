@@ -119,6 +119,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
     public var fileNumber:   String?
     public var amount:       Decimal?
     public var storagePath:  String?
+    public var localFileName: String?
     public var fileType:     DocumentFileType
     public var ocrText:      String?
     public var tags:         [String]
@@ -138,6 +139,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         fileNumber:   String? = nil,
         amount:       Decimal? = nil,
         storagePath:  String? = nil,
+        localFileName: String? = nil,
         fileType:     DocumentFileType = .image,
         ocrText:      String? = nil,
         tags:         [String] = [],
@@ -156,6 +158,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         self.fileNumber   = fileNumber
         self.amount       = amount
         self.storagePath  = storagePath
+        self.localFileName = localFileName
         self.fileType     = fileType
         self.ocrText      = ocrText
         self.tags         = tags
@@ -163,6 +166,13 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         self.notes        = notes
         self.createdAt    = createdAt
         self.updatedAt    = updatedAt
+    }
+
+    public var localFileURL: URL? {
+        guard let name = localFileName else { return nil }
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files", isDirectory: true)
+        let file = dir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
     }
 
     public var isDeadlineUrgent: Bool {
@@ -512,6 +522,14 @@ public final class DocumentArchiveService: ObservableObject {
         documents.filter { $0.isDeadlineUrgent || $0.isOverdue }
     }
 
+    public var totalAmountSum: Decimal {
+        documents.compactMap(\.amount).reduce(0, +)
+    }
+
+    public func categoryCount(_ cat: DocumentCategory) -> Int {
+        documents.filter { $0.category == cat }.count
+    }
+
     public func addDocument(_ doc: AppDocument) {
         documents.removeAll { $0.id == doc.id }
         documents.insert(doc, at: 0)
@@ -556,14 +574,22 @@ public final class DocumentArchiveService: ObservableObject {
     ) async throws -> AppDocument {
         let ext = fileType == .pdf ? "pdf" : "jpg"
         let mimeType = fileType == .pdf ? "application/pdf" : "image/jpeg"
-        let fileName = "\(userId.uuidString)/\(UUID().uuidString).\(ext)"
+        let id = UUID()
+        let fileName = "\(userId.uuidString)/\(id.uuidString).\(ext)"
+
+        // Always save locally first so files open reliably offline & without 404
+        let localName = "\(id.uuidString).\(ext)"
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let localURL = dir.appendingPathComponent(localName)
+        try? data.write(to: localURL)
 
         _ = try? await SupabaseConfig.client.storage
             .from("documents")
             .upload(fileName, data: data, contentType: mimeType)
 
         let doc = AppDocument(
-            id:           UUID(),
+            id:           id,
             userId:       userId,
             title:        title,
             category:     category,
@@ -573,6 +599,7 @@ public final class DocumentArchiveService: ObservableObject {
             fileNumber:   fileNumber,
             amount:       amount,
             storagePath:  fileName,
+            localFileName: localName,
             fileType:     fileType,
             ocrText:      ocrText,
             tags:         tags,
@@ -653,7 +680,104 @@ public final class DocumentArchiveService: ObservableObject {
 }
 
 // =============================================================================
-// MARK: - 4. DocumentArchiveView (Main DMS View)
+// =============================================================================
+// MARK: - 4. DMSSortOption
+
+public enum DMSSortOption: String, CaseIterable, Identifiable {
+    case newest = "Neueste zuerst"
+    case oldest = "Älteste zuerst"
+    case highestAmount = "Höchster Betrag"
+    case urgentDeadline = "Dringendste Frist"
+
+    public var id: String { rawValue }
+}
+
+// =============================================================================
+// MARK: - 5. DocumentGridCard (Visual A4/Receipt Card for Grid View)
+// =============================================================================
+
+public struct DocumentGridCard: View {
+    public let document: AppDocument
+    public let onTap: () -> Void
+
+    public var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Top visual banner / thumbnail
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(document.category.color.opacity(0.12))
+                        .frame(height: 95)
+
+                    if let localURL = document.localFileURL,
+                       document.fileType == .image,
+                       let uiImg = UIImage(contentsOfFile: localURL.path) {
+                        Image(uiImage: uiImg)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 95)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    } else {
+                        VStack(spacing: 4) {
+                            Image(systemName: document.fileType == .pdf ? "doc.richtext.fill" : document.category.icon)
+                                .font(.system(size: 32))
+                                .foregroundStyle(document.category.color)
+                            Text(document.category.rawValue)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(document.category.color.opacity(0.85))
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+
+                    // Status pill top right
+                    Text(document.status.rawValue)
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(document.status.color)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.black.opacity(0.65), in: Capsule())
+                        .padding(6)
+                }
+
+                // Title, Sender, Amount
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(document.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+
+                    if let sender = document.sender {
+                        Text(sender)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    HStack {
+                        if let amt = document.amount {
+                            Text(amt, format: .currency(code: "EUR"))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(Theme.primaryAccent)
+                        }
+                        Spacer()
+                        Text(document.documentDate.formatted(date: .numeric, time: .omitted))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.top, 2)
+                }
+            }
+            .padding(10)
+            .liquidGlassCard(cornerRadius: 16)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// =============================================================================
+// MARK: - 6. DocumentArchiveView (Main DMS View)
 // =============================================================================
 
 public struct DocumentArchiveView: View {
@@ -662,34 +786,53 @@ public struct DocumentArchiveView: View {
 
     @State private var showAddSheet:     Bool = false
     @State private var selectedDocument: AppDocument? = nil
+    @State private var isGridView:       Bool = false
+    @State private var sortOption:       DMSSortOption = .newest
+    @State private var filterUrgentOnly: Bool = false
 
     public init(service: DocumentArchiveService) {
         self.service = service
     }
 
+    private var sortedDocuments: [AppDocument] {
+        var list = service.filteredDocuments
+        if filterUrgentOnly {
+            list = list.filter { $0.isDeadlineUrgent || $0.isOverdue }
+        }
+        switch sortOption {
+        case .newest:
+            return list.sorted { $0.documentDate > $1.documentDate }
+        case .oldest:
+            return list.sorted { $0.documentDate < $1.documentDate }
+        case .highestAmount:
+            return list.sorted { ($0.amount ?? 0) > ($1.amount ?? 0) }
+        case .urgentDeadline:
+            return list.sorted { ($0.dueDate ?? Date.distantFuture) < ($1.dueDate ?? Date.distantFuture) }
+        }
+    }
+
     public var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
 
-                // ── Search & Filter Bar ────────────────────────────────
+                // ── KPI Dashboard Cards ────────────────────────────────
+                kpiDashboard
+
+                // ── Search & Mode Switcher Bar ─────────────────────────
                 searchAndFilterBar
 
+                // ── Category Pills (Horizontal with Counts) ────────────
+                categoryPillsSection
+
                 // ── Urgent Deadlines Banner (if any) ───────────────────
-                if !service.urgentDocuments.isEmpty {
+                if !service.urgentDocuments.isEmpty && !filterUrgentOnly {
                     urgentDeadlinesSection
                 }
 
-                // ── Category Pills (Horizontal) ────────────────────────
-                categoryPillsSection
-
-                // ── Document List / Cards ──────────────────────────────
-                if service.filteredDocuments.isEmpty {
-                    emptyStateView
-                } else {
-                    documentListView
-                }
+                // ── Document List / Grid ───────────────────────────────
+                documentContentSection
             }
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
         }
         .scrollDismissesKeyboard(.immediately)
         .navigationTitle("Dokumente")
@@ -716,12 +859,95 @@ public struct DocumentArchiveView: View {
         }
     }
 
+    // ── KPI Header ─────────────────────────────────────────────────────
+
+    private var kpiDashboard: some View {
+        HStack(spacing: 10) {
+            // Belege gesamt
+            statCard(
+                title: "Belege",
+                value: "\(service.documents.count)",
+                icon: "doc.text.fill",
+                color: Theme.primaryAccent,
+                isSelected: !filterUrgentOnly && service.selectedCategory == nil
+            ) {
+                withAnimation(.spring(response: 0.3)) {
+                    filterUrgentOnly = false
+                    service.selectedCategory = nil
+                }
+            }
+
+            // Fristen
+            let urgentCount = service.urgentDocuments.count
+            statCard(
+                title: "Fristen",
+                value: "\(urgentCount)",
+                icon: "alarm.waves.left.and.right.fill",
+                color: urgentCount > 0 ? .orange : .green,
+                isSelected: filterUrgentOnly
+            ) {
+                withAnimation(.spring(response: 0.3)) {
+                    filterUrgentOnly.toggle()
+                }
+            }
+
+            // Gesamtwert
+            statCard(
+                title: "Gesamtwert",
+                value: service.totalAmountSum > 0 ? service.totalAmountSum.formatted(.currency(code: "EUR")) : "0 €",
+                icon: "eurosign.circle.fill",
+                color: .teal,
+                isSelected: false
+            ) {}
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func statCard(title: String, value: String, icon: String, color: Color, isSelected: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(color)
+                    Spacer()
+                    if isSelected {
+                        Circle()
+                            .fill(color)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                Text(value)
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(isSelected ? 0.12 : 0.04))
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(isSelected ? AnyShapeStyle(color.opacity(0.6)) : AnyShapeStyle(Theme.glassEdgeGradient), lineWidth: isSelected ? 1.2 : 0.8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // ── Search & Mode Bar ──────────────────────────────────────────────
+
     private var searchAndFilterBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Suche nach Titel, Absender, OCR-Text…", text: $service.searchText)
+                TextField("Titel, Absender, OCR-Text…", text: $service.searchText)
                     .textFieldStyle(.plain)
                 if !service.searchText.isEmpty {
                     Button {
@@ -733,34 +959,67 @@ public struct DocumentArchiveView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
             }
 
+            // Grid / List Toggle
             Button {
-                showAddSheet = true
+                withAnimation(.spring(response: 0.35)) {
+                    isGridView.toggle()
+                }
             } label: {
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: 20))
+                Image(systemName: isGridView ? "list.bullet" : "square.grid.2x2.fill")
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.primaryAccent)
-                    .frame(width: 42, height: 42)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
+                    }
+            }
+
+            // Sort Menu
+            Menu {
+                ForEach(DMSSortOption.allCases) { opt in
+                    Button {
+                        sortOption = opt
+                    } label: {
+                        HStack {
+                            Text(opt.rawValue)
+                            if sortOption == opt { Image(systemName: "checkmark") }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.primaryAccent)
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
+                    }
             }
         }
         .padding(.horizontal, 16)
     }
 
+    // ── Urgent Deadlines Section ───────────────────────────────────────
+
     private var urgentDeadlinesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "alarm.waves.left.and.right.fill")
                     .foregroundStyle(.red)
                 Text("Fristen-Radar (\(service.urgentDocuments.count))")
-                    .font(.subheadline.bold())
+                    .font(.caption.bold())
                     .foregroundStyle(.primary)
                 Spacer()
             }
@@ -769,10 +1028,10 @@ public struct DocumentArchiveView: View {
                 Button {
                     selectedDocument = doc
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Circle()
                             .fill(doc.isOverdue ? Color.red : Color.orange)
-                            .frame(width: 10, height: 10)
+                            .frame(width: 8, height: 8)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(doc.title)
@@ -792,28 +1051,45 @@ public struct DocumentArchiveView: View {
                             .font(.caption2.bold())
                             .foregroundStyle(.tertiary)
                     }
-                    .padding(10)
+                    .padding(8)
                     .background((doc.isOverdue ? Color.red : Color.orange).opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(14)
-        .liquidGlassCard(cornerRadius: 18)
+        .padding(12)
+        .liquidGlassCard(cornerRadius: 16)
         .padding(.horizontal, 16)
     }
+
+    // ── Category Pills with Counts ─────────────────────────────────────
 
     private var categoryPillsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                categoryPill(title: "Alle", icon: "tray.full.fill", isSelected: service.selectedCategory == nil) {
-                    withAnimation(.spring(response: 0.3)) { service.selectedCategory = nil }
+                categoryPill(
+                    title: "Alle",
+                    count: service.documents.count,
+                    icon: "tray.full.fill",
+                    isSelected: service.selectedCategory == nil && !filterUrgentOnly
+                ) {
+                    withAnimation(.spring(response: 0.3)) {
+                        service.selectedCategory = nil
+                        filterUrgentOnly = false
+                    }
                 }
 
                 ForEach(DocumentCategory.allCases) { cat in
-                    categoryPill(title: cat.rawValue, icon: cat.icon, isSelected: service.selectedCategory == cat) {
+                    let c = service.categoryCount(cat)
+                    categoryPill(
+                        title: cat.rawValue,
+                        count: c,
+                        icon: cat.icon,
+                        isSelected: service.selectedCategory == cat
+                    ) {
                         withAnimation(.spring(response: 0.3)) {
                             service.selectedCategory = (service.selectedCategory == cat) ? nil : cat
+                            filterUrgentOnly = false
                         }
                     }
                 }
@@ -822,13 +1098,19 @@ public struct DocumentArchiveView: View {
         }
     }
 
-    private func categoryPill(title: String, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func categoryPill(title: String, count: Int, icon: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(isSelected ? Color.white.opacity(0.25) : Color.white.opacity(0.1), in: Capsule())
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
@@ -850,15 +1132,31 @@ public struct DocumentArchiveView: View {
         .buttonStyle(.plain)
     }
 
-    private var documentListView: some View {
-        LazyVStack(spacing: 12) {
-            ForEach(service.filteredDocuments) { doc in
-                DocumentCardRow(document: doc) {
-                    selectedDocument = doc
+    // ── Document Content (Grid vs List) ────────────────────────────────
+
+    @ViewBuilder
+    private var documentContentSection: some View {
+        if sortedDocuments.isEmpty {
+            emptyStateView
+        } else if isGridView {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(sortedDocuments) { doc in
+                    DocumentGridCard(document: doc) {
+                        selectedDocument = doc
+                    }
                 }
             }
+            .padding(.horizontal, 16)
+        } else {
+            LazyVStack(spacing: 10) {
+                ForEach(sortedDocuments) { doc in
+                    DocumentCardRow(document: doc) {
+                        selectedDocument = doc
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 16)
     }
 
     private var emptyStateView: some View {
@@ -960,11 +1258,18 @@ public struct DocumentCardRow: View {
 
 public struct DocumentDetailView: View {
     public let document: AppDocument
-    public let service:  DocumentArchiveService
+    @ObservedObject public var service: DocumentArchiveService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showOCRDrawer: Bool = false
     @State private var isCopied:      Bool = false
+    @State private var showFileViewer: Bool = false
+    @State private var previewURL: URL? = nil
+    @State private var showAIChat: Bool = false
+
+    public var currentDoc: AppDocument {
+        service.documents.first(where: { $0.id == document.id }) ?? document
+    }
 
     public var body: some View {
         ScrollView {
@@ -972,7 +1277,7 @@ public struct DocumentDetailView: View {
                 documentPreviewCard
                 metadataSection
                 deadlineSection
-                if let ocr = document.ocrText, !ocr.isEmpty {
+                if let ocr = currentDoc.ocrText, !ocr.isEmpty {
                     ocrTextSection(ocr)
                 }
                 tagsAndNotesSection
@@ -980,13 +1285,45 @@ public struct DocumentDetailView: View {
             }
             .padding(16)
         }
-        .navigationTitle(document.title)
+        .navigationTitle(currentDoc.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Fertig") { dismiss() }
             }
         }
+        .sheet(isPresented: $showFileViewer) {
+            if let url = previewURL {
+                ShareSheet(items: [url])
+            }
+        }
+        .sheet(isPresented: $showAIChat) {
+            AIChatSheet(initialPrompt: buildAIPrompt())
+        }
+    }
+
+    private func buildAIPrompt() -> String {
+        var parts: [String] = []
+        parts.append("Analysiere bitte folgendes Dokument und berate mich dazu:")
+        parts.append("• Titel: \(currentDoc.title)")
+        parts.append("• Kategorie: \(currentDoc.category.rawValue)")
+        if let sender = currentDoc.sender {
+            parts.append("• Absender: \(sender)")
+        }
+        if let fn = currentDoc.fileNumber {
+            parts.append("• Aktenzeichen: \(fn)")
+        }
+        if let amt = currentDoc.amount {
+            parts.append("• Betrag: \(amt.formatted(.currency(code: "EUR")))")
+        }
+        if let due = currentDoc.dueDate {
+            parts.append("• Frist: \(due.formatted(date: .numeric, time: .omitted))")
+        }
+        if let ocr = currentDoc.ocrText, !ocr.isEmpty {
+            parts.append("\nErkannter Belegtext / OCR:\n\(ocr)")
+        }
+        parts.append("\nFrage: Gibt es Fristen, Zahlungsaufforderungen oder konkrete Handlungsempfehlungen für mich?")
+        return parts.joined(separator: "\n")
     }
 
     private var documentPreviewCard: some View {
@@ -997,15 +1334,24 @@ public struct DocumentDetailView: View {
                     .frame(height: 160)
 
                 VStack(spacing: 10) {
-                    Image(systemName: document.fileType == .pdf ? "doc.richtext.fill" : "doc.text.image.fill")
+                    Image(systemName: currentDoc.fileType == .pdf ? "doc.richtext.fill" : "doc.text.image.fill")
                         .font(.system(size: 44))
                         .foregroundStyle(Theme.primaryAccent)
 
-                    Text(document.fileType == .pdf ? "PDF-Dokument" : "Dokumenten-Scan")
+                    Text(currentDoc.fileType == .pdf ? "PDF-Dokument" : "Dokumenten-Scan")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    if let path = document.storagePath {
+                    if let localURL = currentDoc.localFileURL {
+                        Button {
+                            previewURL = localURL
+                            showFileViewer = true
+                        } label: {
+                            Label("Originaldatei anzeigen / teilen", systemImage: "arrow.up.right.square")
+                                .font(.caption.bold())
+                        }
+                        .tint(Theme.primaryAccent)
+                    } else if let path = currentDoc.storagePath {
                         let fullURL = SupabaseConfig.url.appendingPathComponent("storage/v1/object/public/documents/\(path)")
                         Link(destination: fullURL) {
                             Label("Originaldatei anzeigen", systemImage: "arrow.up.right.square")
@@ -1024,17 +1370,17 @@ public struct DocumentDetailView: View {
             Text("Hauptdaten")
                 .font(.headline)
 
-            detailRow("Kategorie", value: document.category.rawValue, icon: document.category.icon, color: document.category.color)
-            if let sender = document.sender {
+            detailRow("Kategorie", value: currentDoc.category.rawValue, icon: currentDoc.category.icon, color: currentDoc.category.color)
+            if let sender = currentDoc.sender {
                 detailRow("Absender / Firma", value: sender, icon: "person.crop.circle", color: .blue)
             }
-            if let fn = document.fileNumber {
+            if let fn = currentDoc.fileNumber {
                 detailRow("Aktenzeichen / Nr.", value: fn, icon: "number", color: .purple)
             }
-            if let amt = document.amount {
+            if let amt = currentDoc.amount {
                 detailRow("Betrag", value: amt.formatted(.currency(code: "EUR")), icon: "eurosign.circle.fill", color: .green)
             }
-            detailRow("Belegdatum", value: document.documentDate.formatted(date: .long, time: .omitted), icon: "calendar", color: .teal)
+            detailRow("Belegdatum", value: currentDoc.documentDate.formatted(date: .long, time: .omitted), icon: "calendar", color: .teal)
         }
         .padding(14)
         .liquidGlassCard(cornerRadius: 18)
@@ -1062,23 +1408,23 @@ public struct DocumentDetailView: View {
                 Label("Frist & Wiedervorlage", systemImage: "calendar.badge.clock")
                     .font(.headline)
                 Spacer()
-                if document.dueDate != nil {
-                    Text(document.isOverdue ? "Abgelaufen" : "Aktiv")
+                if currentDoc.dueDate != nil {
+                    Text(currentDoc.isOverdue ? "Abgelaufen" : "Aktiv")
                         .font(.caption2.bold())
-                        .foregroundStyle(document.isOverdue ? Color.red : Color.green)
+                        .foregroundStyle(currentDoc.isOverdue ? Color.red : Color.green)
                         .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background((document.isOverdue ? Color.red : Color.green).opacity(0.12), in: Capsule())
+                        .background((currentDoc.isOverdue ? Color.red : Color.green).opacity(0.12), in: Capsule())
                 }
             }
 
-            if let due = document.dueDate {
+            if let due = currentDoc.dueDate {
                 HStack {
                     Text("Fälligkeitsdatum:")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text(due.formatted(date: .long, time: .omitted))
                         .bold()
-                        .foregroundStyle(document.isOverdue ? Color.red : (document.isDeadlineUrgent ? Color.orange : Color.primary))
+                        .foregroundStyle(currentDoc.isOverdue ? Color.red : (currentDoc.isDeadlineUrgent ? Color.orange : Color.primary))
                 }
             } else {
                 Text("Keine Frist für dieses Dokument hinterlegt.")
@@ -1131,9 +1477,9 @@ public struct DocumentDetailView: View {
             Text("Schlagwörter & Notizen")
                 .font(.headline)
 
-            if !document.tags.isEmpty {
+            if !currentDoc.tags.isEmpty {
                 HStack(spacing: 6) {
-                    ForEach(document.tags, id: \.self) { tag in
+                    ForEach(currentDoc.tags, id: \.self) { tag in
                         Text("#\(tag)")
                             .font(.caption2.bold())
                             .foregroundStyle(Theme.primaryAccent)
@@ -1143,7 +1489,7 @@ public struct DocumentDetailView: View {
                 }
             }
 
-            if let notes = document.notes, !notes.isEmpty {
+            if let notes = currentDoc.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -1154,34 +1500,47 @@ public struct DocumentDetailView: View {
     }
 
     private var actionButtonsSection: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
+            // Mit KI analysieren & beraten
+            Button {
+                showAIChat = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Mit KI analysieren & beraten")
+                        .font(.subheadline.bold())
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Theme.primaryGradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: Theme.primaryAccent.opacity(0.35), radius: 8, y: 3)
+            }
+
             Menu {
                 ForEach(DocumentStatus.allCases) { st in
                     Button {
-                        Task { @MainActor in
-                            service.updateStatus(document.id, newStatus: st)
-                        }
+                        service.updateStatus(document.id, newStatus: st)
                     } label: {
                         Label(st.rawValue, systemImage: st.icon)
                     }
                 }
             } label: {
                 HStack {
-                    Label("Status: \(document.status.rawValue)", systemImage: document.status.icon)
+                    Label("Status: \(currentDoc.status.rawValue)", systemImage: currentDoc.status.icon)
                     Spacer()
                     Image(systemName: "chevron.up.chevron.down")
                 }
                 .font(.subheadline.bold())
                 .padding()
-                .background(document.status.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
-                .foregroundStyle(document.status.color)
+                .background(currentDoc.status.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(currentDoc.status.color)
             }
 
             Button(role: .destructive) {
-                Task { @MainActor in
-                    service.deleteDocument(document.id)
-                    dismiss()
-                }
+                service.deleteDocument(document.id)
+                dismiss()
             } label: {
                 Label("Dokument löschen", systemImage: "trash")
                     .font(.subheadline.bold())
@@ -1457,15 +1816,20 @@ public struct AddDocumentSheet: View {
 // MARK: - 8. UIKit Wrappers for Pickers
 // =============================================================================
 
-private struct DocumentImagePicker: UIViewControllerRepresentable {
+struct DocumentImagePicker: UIViewControllerRepresentable {
+    var sourceType: UIImagePickerController.SourceType = .photoLibrary
     var onPick: (UIImage?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
-        picker.delegate   = context.coordinator
+        if UIImagePickerController.isSourceTypeAvailable(sourceType) {
+            picker.sourceType = sourceType
+        } else {
+            picker.sourceType = .photoLibrary
+        }
+        picker.delegate = context.coordinator
         return picker
     }
 
@@ -1486,7 +1850,7 @@ private struct DocumentImagePicker: UIViewControllerRepresentable {
     }
 }
 
-private struct DocumentFilePicker: UIViewControllerRepresentable {
+struct DocumentFilePicker: UIViewControllerRepresentable {
     var onPick: (URL?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
@@ -1512,3 +1876,4 @@ private struct DocumentFilePicker: UIViewControllerRepresentable {
         }
     }
 }
+
