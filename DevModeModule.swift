@@ -60,6 +60,11 @@ struct DevModeBanner: View {
                     Image(systemName: "terminal.fill")
                     Text("Konsole")
                         .font(.caption.bold())
+                    if RemoteLogServer.shared.isRunning {
+                        Image(systemName: "wifi")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.green)
+                    }
                     if logger.errorCount > 0 {
                         Text("\(logger.errorCount)")
                             .font(.system(size: 9, weight: .black))
@@ -193,6 +198,47 @@ struct DevModePanel: View {
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+
+                    // WLAN-Diagnoseserver Status
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Circle()
+                                .fill(RemoteLogServer.shared.isRunning ? Color.green : Color.secondary)
+                                .frame(width: 8, height: 8)
+                            Text(RemoteLogServer.shared.isRunning ? "WLAN-Diagnoseserver aktiv" : "WLAN-Diagnoseserver inaktiv")
+                                .font(.caption.bold())
+                                .foregroundColor(RemoteLogServer.shared.isRunning ? .green : .secondary)
+                            Spacer()
+                            Button(RemoteLogServer.shared.isRunning ? "Stopp" : "Starten") {
+                                RemoteLogServer.shared.toggle()
+                            }
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(RemoteLogServer.shared.isRunning ? Color.red.opacity(0.2) : Color.green.opacity(0.2), in: Capsule())
+                            .foregroundColor(RemoteLogServer.shared.isRunning ? .red : .green)
+                        }
+
+                        if RemoteLogServer.shared.isRunning, let url = RemoteLogServer.shared.serverURL {
+                            HStack {
+                                Text("curl -s \(url)/logs/text")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button {
+                                    UIPasteboard.general.string = "curl -s \(url)/logs/text"
+                                } label: {
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.caption)
+                                        .foregroundColor(Theme.primaryAccent)
+                                }
+                            }
+                            .padding(6)
+                            .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
 
                     NavigationLink {
                         ConsoleLogView()
