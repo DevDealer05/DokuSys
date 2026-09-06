@@ -572,7 +572,7 @@ public struct CommercialHubView: View {
             guard let amt = doc.amount else { continue }
             let formattedAmount = String(format: "%.2f", NSDecimalNumber(decimal: amt).doubleValue).replacingOccurrences(of: ".", with: ",")
             let belegdatum = dayMonthFormatter.string(from: doc.documentDate)
-            let belegfeld1 = (doc.fileNumber ?? doc.id.uuidString.prefix(8)).description
+            let belegfeld1 = doc.fileNumber ?? String(doc.id.uuidString.prefix(8))
             let buchungstext = (doc.sender ?? doc.title).replacingOccurrences(of: "\"", with: "'")
 
             // Format standard DATEV row (Soll-Buchung auf Aufwandskonto 4900, Gegenkonto 1200 Bank)

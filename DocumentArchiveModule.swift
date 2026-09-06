@@ -934,7 +934,7 @@ public struct DocumentArchiveView: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(isSelected ? color.opacity(0.6) : Theme.glassEdgeGradient, lineWidth: isSelected ? 1.2 : 0.8)
+                    .strokeBorder(isSelected ? AnyShapeStyle(color.opacity(0.6)) : AnyShapeStyle(Theme.glassEdgeGradient), lineWidth: isSelected ? 1.2 : 0.8)
             }
         }
         .buttonStyle(.plain)

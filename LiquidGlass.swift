@@ -307,13 +307,14 @@ struct ContentShell: View {
             // ── Tab content ───────────────────────────
             Group {
                 switch selectedTab {
-                case .overview:  Text("Übersicht")
-                case .documents: Text("Dokumente")
-                case .camera:    EmptyView()
-                case .household: Text("Haushalt")
-                case .export:    Text("Export")
-                case .chat:      Text("KI-Chat")
-                case .devMode:   Text("Dev-Modus")
+                case .overview:   Text("Übersicht")
+                case .documents:  Text("Dokumente")
+                case .camera:     EmptyView()
+                case .household:  Text("Haushalt")
+                case .export:     Text("Export")
+                case .chat:       Text("KI-Chat")
+                case .commercial: Text("Commercial")
+                case .devMode:    Text("Dev-Modus")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
