@@ -1,12 +1,12 @@
 {
   "appName": "Digitales Buero",
   "bundleIdentifier": "de.kim.DigitalesBuero",
-  "version": "1.1.0",
-  "build": "10",
-  "commit": "36aca40",
-  "buildDate": "2026-09-06T20:27:51Z",
-  "ipaSize": 2494593,
-  "changeLog": "fix(gemini): resolve HTTP 404 by using gemini-1.5-flash with auto-fallback and trimmed keys (Build 10)",
+  "version": "1.2.2",
+  "build": "14",
+  "commit": "adb2ea4",
+  "buildDate": "2026-09-06T23:04:05Z",
+  "ipaSize": 2835909,
+  "changeLog": "fix(build): resolve authService in scope, DocumentAutoExtractionEngine title generator, and MainActor isolation in ScannerModule",
   "repo": "DevDealer05/DokuSys",
   "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
   "sideStoreRepo": "https://DevDealer05.github.io/DokuSys/apps.json"

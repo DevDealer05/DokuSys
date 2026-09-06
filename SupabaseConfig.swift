@@ -6,6 +6,10 @@
 
 import Foundation
 import Combine
+import AuthenticationServices
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - Models
 
@@ -176,6 +180,91 @@ public final class AuthClient: @unchecked Sendable {
         }
     }
 
+    /// Send Magic Link / OTP email via Supabase Auth
+    public func sendOTP(email: String, redirectTo: String? = "digitalesbuero://auth") async throws {
+        let endpoint = baseURL.appendingPathComponent("auth/v1/otp")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "apikey")
+        
+        var payload: [String: Any] = [
+            "email": email,
+            "create_user": true
+        ]
+        if let redirectTo = redirectTo, !redirectTo.isEmpty {
+            payload["email_redirect_to"] = redirectTo
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Keine Serververbindung zu Supabase."])
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let errorMsg = Self.parseErrorMessage(from: data) ?? "Fehler beim Senden der E-Mail (HTTP \(http.statusCode))."
+            throw NSError(domain: "Auth", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+    }
+
+    /// Verify 6-digit OTP code or token from email
+    public func verifyOTP(email: String, token: String, type: String = "email") async throws {
+        let endpoint = baseURL.appendingPathComponent("auth/v1/verify")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "apikey")
+        
+        let payload: [String: Any] = [
+            "type": type,
+            "email": email,
+            "token": token
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Keine Serververbindung."])
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let errorMsg = Self.parseErrorMessage(from: data) ?? "Ungültiger oder abgelaufener Bestätigungscode."
+            throw NSError(domain: "Auth", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let session = try decoder.decode(Session.self, from: data)
+        saveSession(session)
+    }
+
+    /// Register new account with Email & Password
+    public func signUpWithEmail(email: String, password: String) async throws {
+        let endpoint = baseURL.appendingPathComponent("auth/v1/signup")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "apikey")
+        
+        let payload = ["email": email, "password": password]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Keine Serververbindung."])
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let errorMsg = Self.parseErrorMessage(from: data) ?? "Registrierung fehlgeschlagen (HTTP \(http.statusCode))."
+            throw NSError(domain: "Auth", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        if let session = try? decoder.decode(Session.self, from: data), !session.accessToken.isEmpty {
+            saveSession(session)
+        }
+    }
+
+    /// Sign in with existing Email & Password
     public func signInWithEmail(email: String, password: String) async throws {
         let endpoint = baseURL.appendingPathComponent("auth/v1/token")
         var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: true)!
@@ -189,31 +278,157 @@ public final class AuthClient: @unchecked Sendable {
         let payload = ["email": email, "password": password]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                // Offline fallback session for this email
-                let localUser = User(id: UUID(), email: email)
-                let localSession = Session(accessToken: apiKey, user: localUser)
-                saveSession(localSession)
-                return
-            }
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let session = try decoder.decode(Session.self, from: data)
-            saveSession(session)
-        } catch {
-            // Offline fallback
-            let localUser = User(id: UUID(), email: email)
-            let localSession = Session(accessToken: apiKey, user: localUser)
-            saveSession(localSession)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Keine Serververbindung."])
         }
+        guard (200...299).contains(http.statusCode) else {
+            let rawMsg = Self.parseErrorMessage(from: data) ?? "Ungültige Anmeldedaten."
+            let friendlyMsg = rawMsg.contains("Invalid login credentials")
+                ? "Ungültige Anmeldedaten. Bitte prüfe E-Mail und Passwort oder registriere dich neu."
+                : rawMsg
+            throw NSError(domain: "Auth", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: friendlyMsg])
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let session = try decoder.decode(Session.self, from: data)
+        saveSession(session)
+    }
+
+    /// Handles auth callback URLs such as digitalesbuero://auth#access_token=...
+    @discardableResult
+    public func handleAuthURL(_ url: URL) -> Bool {
+        var tokenMap: [String: String] = [:]
+        
+        if let fragment = url.fragment {
+            for item in fragment.components(separatedBy: "&") {
+                let pair = item.components(separatedBy: "=")
+                if pair.count == 2 {
+                    tokenMap[pair[0]] = pair[1].removingPercentEncoding ?? pair[1]
+                }
+            }
+        }
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let queryItems = components.queryItems {
+            for item in queryItems {
+                if let val = item.value {
+                    tokenMap[item.name] = val
+                }
+            }
+        }
+        
+        guard let accessToken = tokenMap["access_token"], !accessToken.isEmpty else {
+            return false
+        }
+        
+        var userId = UUID()
+        var userEmail = "nutzer@digitalesbuero.app"
+        if let payload = Self.decodeJWTPayload(accessToken) {
+            if let sub = payload["sub"] as? String, let uid = UUID(uuidString: sub) {
+                userId = uid
+            }
+            if let email = payload["email"] as? String {
+                userEmail = email
+            }
+        }
+        
+        let newSession = Session(accessToken: accessToken, user: User(id: userId, email: userEmail))
+        saveSession(newSession)
+        return true
+    }
+
+    /// Sign in with Supabase OAuth (Google, Apple, etc.)
+    @MainActor
+    public func signInWithOAuth(provider: String) async throws {
+        var components = URLComponents(url: baseURL.appendingPathComponent("auth/v1/authorize"), resolvingAgainstBaseURL: true)!
+        components.queryItems = [
+            URLQueryItem(name: "provider", value: provider),
+            URLQueryItem(name: "redirect_to", value: "digitalesbuero://auth")
+        ]
+        guard let authURL = components.url else {
+            throw NSError(domain: "Auth", code: 400, userInfo: [NSLocalizedDescriptionKey: "Ungültige OAuth-URL."])
+        }
+        
+        #if canImport(UIKit)
+        let callbackURL = try await OAuthWebAuthSessionCoordinator.shared.authenticate(with: authURL, scheme: "digitalesbuero")
+        guard handleAuthURL(callbackURL) else {
+            throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Kein Zugriffstoken im OAuth-Rückruf gefunden."])
+        }
+        #else
+        throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "OAuth auf dieser Plattform nicht unterstützt."])
+        #endif
     }
     
     public func signOut() async throws {
         saveSession(nil)
     }
+
+    public static func decodeJWTPayload(_ jwt: String) -> [String: Any]? {
+        let parts = jwt.components(separatedBy: ".")
+        guard parts.count >= 2 else { return nil }
+        var base64 = parts[1]
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 {
+            base64.append("=")
+        }
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return json
+    }
+
+    public static func parseErrorMessage(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return String(data: data, encoding: .utf8)
+        }
+        if let desc = json["error_description"] as? String { return desc }
+        if let msg = json["msg"] as? String { return msg }
+        if let message = json["message"] as? String { return message }
+        if let err = json["error"] as? String { return err }
+        return nil
+    }
 }
+
+// MARK: - OAuth Web Session Coordinator
+#if canImport(UIKit)
+@MainActor
+public final class OAuthWebAuthSessionCoordinator: NSObject, ASWebAuthenticationPresentationContextProviding, @unchecked Sendable {
+    public static let shared = OAuthWebAuthSessionCoordinator()
+    
+    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let activeScene = scenes.first(where: { $0.activationState == .foregroundActive }),
+           let window = activeScene.windows.first(where: { $0.isKeyWindow }) ?? activeScene.windows.first {
+            return window
+        }
+        if let window = scenes.flatMap(\.windows).first {
+            return window
+        }
+        return ASPresentationAnchor()
+    }
+    
+    public func authenticate(with url: URL, scheme: String) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callbackURL, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let callbackURL = callbackURL {
+                    continuation.resume(returning: callbackURL)
+                } else {
+                    continuation.resume(throwing: NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "Authentifizierung abgebrochen."]))
+                }
+            }
+            session.presentationContextProvider = self
+            session.prefersEphemeralWebBrowserSession = false
+            session.start()
+        }
+    }
+}
+#endif
+
 
 // MARK: - Postgrest Query Builder
 

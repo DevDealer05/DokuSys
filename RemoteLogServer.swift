@@ -49,11 +49,8 @@ final class RemoteLogServer: ObservableObject {
 
             let newListener = try NWListener(using: parameters, on: nwPort)
 
-            // Bonjour Advertisement für automatische Mac-Erkennung
-            newListener.service = NWListener.Service(
-                name: "DigitalesBuero-Diagnostic",
-                type: "_db-logs._tcp"
-            )
+            // Kein newListener.service (Bonjour), da dies ohne Info.plist NSBonjourServices -65555 NoAuth wirft.
+            // Der HTTP-Server lauscht direkt auf TCP Port targetPort.
 
             newListener.stateUpdateHandler = { [weak self] state in
                 DispatchQueue.main.async {

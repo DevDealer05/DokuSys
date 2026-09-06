@@ -20,39 +20,85 @@ final class AuthService: ObservableObject {
         self.session = client.auth.getCachedSession()
     }
 
-    /// Sign in with Google OAuth (100% free via Supabase Auth)
+    /// Sign in with Google OAuth (Live via Supabase Auth)
     func signInWithGoogle() async {
         isLoading = true
+        error = nil
         defer { isLoading = false }
-        let googleId = UUID(uuidString: "g1a2b3c4-d5e6-4a1b-8c2d-3e4f5a6b7c8d") ?? UUID()
-        let googleSession = Session(
-            accessToken: SupabaseConfig.anonKey,
-            user: User(id: googleId, email: "google.nutzer@gmail.com")
-        )
-        client.auth.saveSession(googleSession)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            self.session = googleSession
-            self.isLoading = false
-            self.error = nil
+        do {
+            try await client.auth.signInWithOAuth(provider: "google")
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.session = client.auth.getCachedSession()
+                self.error = nil
+            }
+            AppLogger.shared.success("Auth", "Google Login erfolgreich abgeschlossen.")
+        } catch {
+            AppLogger.shared.error("Auth", "Google Login fehlgeschlagen: \(error.localizedDescription)")
+            self.error = error
         }
     }
 
-    /// Sign in with Magic Link / OTP (100% free, passwordless)
-    func signInWithMagicLink(email: String) async {
+    /// Sign in with Apple OAuth (Live via Supabase Auth)
+    func signInWithApple() async {
         isLoading = true
+        error = nil
+        defer { isLoading = false }
+        do {
+            try await client.auth.signInWithOAuth(provider: "apple")
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.session = client.auth.getCachedSession()
+                self.error = nil
+            }
+            AppLogger.shared.success("Auth", "Apple Login erfolgreich abgeschlossen.")
+        } catch {
+            AppLogger.shared.error("Auth", "Apple Login fehlgeschlagen: \(error.localizedDescription)")
+            self.error = error
+        }
+    }
+
+    /// Send Magic Link & OTP confirmation code via Supabase Auth email server
+    func sendMagicLink(email: String) async throws {
+        isLoading = true
+        error = nil
         defer { isLoading = false }
         let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        let localUser = User(id: UUID(), email: cleanEmail.isEmpty ? "nutzer@digitalesbuero.app" : cleanEmail)
-        let localSession = Session(accessToken: SupabaseConfig.anonKey, user: localUser)
-        client.auth.saveSession(localSession)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            self.session = localSession
-            self.isLoading = false
-            self.error = nil
+        guard !cleanEmail.isEmpty else {
+            let err = NSError(domain: "Auth", code: 400, userInfo: [NSLocalizedDescriptionKey: "Bitte gib eine gültige E-Mail-Adresse ein."])
+            self.error = err
+            throw err
+        }
+        do {
+            try await client.auth.sendOTP(email: cleanEmail, redirectTo: "digitalesbuero://auth")
+            AppLogger.shared.info("Auth", "Magic Link & 6-stelliger Code per E-Mail an '\(cleanEmail)' versendet.")
+        } catch {
+            AppLogger.shared.error("Auth", "E-Mail-Versand fehlgeschlagen: \(error.localizedDescription)")
+            self.error = error
+            throw error
+        }
+    }
+
+    /// Verify 6-digit confirmation code received via email
+    func verifyOTP(email: String, token: String) async throws {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            try await client.auth.verifyOTP(email: cleanEmail, token: cleanToken)
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.session = client.auth.getCachedSession()
+                self.error = nil
+            }
+            AppLogger.shared.success("Auth", "E-Mail-Code erfolgreich bestätigt für '\(cleanEmail)'.")
+        } catch {
+            AppLogger.shared.error("Auth", "Code-Verifikation fehlgeschlagen: \(error.localizedDescription)")
+            self.error = error
+            throw error
         }
     }
     
-    /// Quick guest / demo login to test the app without Apple Developer configuration
+    /// Quick guest / demo login to test the app instantly without internet or email
     func signInAsGuest() {
         let defaultId = UUID(uuidString: "e1a2b3c4-d5e6-4a1b-8c2d-3e4f5a6b7c8d") ?? UUID()
         let guestSession = Session(
@@ -65,22 +111,61 @@ final class AuthService: ObservableObject {
             self.isLoading = false
             self.error = nil
         }
+        AppLogger.shared.info("Auth", "Lokale Gast-Sitzung gestartet.")
     }
 
-    /// Sign in with Email & Password (100% free via Supabase Auth)
+    /// Sign in with Email & Password
     func signInWithEmail(email: String, password: String) async {
         isLoading = true
+        error = nil
         defer { isLoading = false }
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            try await client.auth.signInWithEmail(email: email, password: password)
+            try await client.auth.signInWithEmail(email: cleanEmail, password: password)
             withAnimation(.easeInOut(duration: 0.3)) {
                 self.session = client.auth.getCachedSession()
                 self.error = nil
             }
+            AppLogger.shared.success("Auth", "Erfolgreich angemeldet mit '\(cleanEmail)'.")
         } catch {
+            AppLogger.shared.error("Auth", "Anmeldung fehlgeschlagen: \(error.localizedDescription)")
             self.error = error
         }
     }
+
+    /// Register a new account with Email & Password
+    func signUpWithEmail(email: String, password: String) async {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            try await client.auth.signUpWithEmail(email: cleanEmail, password: password)
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.session = client.auth.getCachedSession()
+                self.error = nil
+            }
+            AppLogger.shared.success("Auth", "Neues Konto erfolgreich erstellt für '\(cleanEmail)'.")
+        } catch {
+            AppLogger.shared.error("Auth", "Registrierung fehlgeschlagen: \(error.localizedDescription)")
+            self.error = error
+        }
+    }
+
+    /// Handles incoming auth deep-links like digitalesbuero://auth#access_token=...
+    @discardableResult
+    func handleDeepLinkURL(_ url: URL) -> Bool {
+        if client.auth.handleAuthURL(url) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.session = client.auth.getCachedSession()
+                self.error = nil
+            }
+            AppLogger.shared.success("Auth", "Deep-Link Authentifizierung erfolgreich abgeschlossen.")
+            return true
+        }
+        return false
+    }
+
     
     func signOut() {
         isLoading = true

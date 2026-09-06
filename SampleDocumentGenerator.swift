@@ -14,12 +14,14 @@ import SwiftUI
 
 enum SampleDocumentGenerator {
 
-    /// Generiert 3 realistische Testdokumente für die 4-Wege-Triage (Schulden, Vorrat, Hardware)
+    /// Generiert realistische Testdokumente (Mahnung, Mahnbescheid, Vollstreckung, Vorrat, Hardware)
     static func generateSamplePages() -> [ScannedPage] {
         let page1 = generateDebtSample()
-        let page2 = generatePantrySample()
-        let page3 = generateHardwareSample()
-        return [page1, page2, page3]
+        let page2 = generateMahnbescheidSample()
+        let page3 = generateVollstreckungsbescheidSample()
+        let page4 = generatePantrySample()
+        let page5 = generateHardwareSample()
+        return [page1, page2, page3, page4, page5]
     }
 
     // ── 1. Inkasso-Mahnung (👉 Swipe Rechts: Schulden) ────────────────────
@@ -63,7 +65,99 @@ enum SampleDocumentGenerator {
         return page
     }
 
-    // ── 2. REWE Kassenbon (👈 Swipe Links: Vorrat) ────────────────────────
+    // ── 2. Gerichtlicher Mahnbescheid (Zuordnung zu EOS Inkasso AZ) ───────
+
+    private static func generateMahnbescheidSample() -> ScannedPage {
+        let text = """
+        Amtsgericht Hamburg - Zentrales Mahngericht
+        Willy-Brandt-Straße 10, 20457 Hamburg
+
+        MAHNBESCHEID
+
+        Geschäftsnummer / Aktenzeichen: EOS-2026-99410-DE
+        Gerichtliches Aktenzeichen: 24-08912-01-N
+
+        Antragsteller:
+        Vodafone GmbH
+        vertreten durch:
+        EOS Deutscher Inkasso-Dienst GmbH, 22773 Hamburg
+
+        Antragsgegner:
+        Max Mustermann, Musterstraße 1, 12345 Musterstadt
+
+        Forderungsaufstellung:
+        I. Hauptforderung: 580,00 EUR
+        II. Zinsen (5 % über Basiszins): 42,50 EUR
+        III. Inkassokosten: 120,00 EUR
+        IV. Kosten des Verfahrens (Gerichtskosten): 36,00 EUR
+        Gesamtforderung: 778,50 EUR
+
+        Widerspruchsfrist: 2 Wochen ab Zustellung dieses Bescheids.
+        Datum: 22.08.2024
+        """
+
+        let image = renderTextImage(
+            title: "AMTSGERICHT HAMBURG",
+            subtitle: "MAHNBESCHEID\nAktenzeichen: EOS-2026-99410-DE\nGesamtforderung: 778,50 €\nWiderspruchsfrist: 2 Wochen",
+            icon: "scale.3d",
+            headerColor: .systemOrange
+        )
+        var page = ScannedPage(image: image)
+        page.ocrResult = OCRResult(
+            rawText: text,
+            fileNumbers: ["EOS-2026-99410-DE", "24-08912-01-N"],
+            euroAmounts: [
+                ParsedAmount(raw: "778,50 €", decimal: 778.50),
+                ParsedAmount(raw: "580,00 €", decimal: 580.00),
+                ParsedAmount(raw: "36,00 €", decimal: 36.00)
+            ]
+        )
+        return page
+    }
+
+    // ── 3. Vollstreckungsbescheid (Akute Vollstreckung) ───────────────────
+
+    private static func generateVollstreckungsbescheidSample() -> ScannedPage {
+        let text = """
+        Amtsgericht Hamburg - Zentrales Mahngericht
+
+        VOLLSTRECKUNGSBESCHEID
+
+        Vollstreckbare Ausfertigung gem. § 700 ZPO
+        Aktenzeichen: EOS-2026-99410-DE
+        Gerichtliches Geschäftszeichen: 24-08912-01-VB
+
+        Gläubiger: Vodafone GmbH c/o EOS Deutscher Inkasso-Dienst GmbH
+        Schuldner: Max Mustermann
+
+        Aus dem Mahnbescheid vom 22.08.2024 wird hiermit der Vollstreckungsbescheid erlassen:
+        Hauptforderung nebst Kosten und Zinsen: 778,50 EUR
+        Weitere Vollstreckungskosten: 34,00 EUR
+        Gesamtsumme: 812,50 EUR
+
+        Einspruchsfrist: 2 Wochen ab Zustellung.
+        Zwangsvollstreckung kann betrieben werden.
+        """
+
+        let image = renderTextImage(
+            title: "VOLLSTRECKUNGSBESCHEID",
+            subtitle: "Amtsgericht Hamburg\nAktenzeichen: EOS-2026-99410-DE\nGesamtbetrag: 812,50 €\nZwangsvollstreckung droht",
+            icon: "bolt.shield.fill",
+            headerColor: .systemRed
+        )
+        var page = ScannedPage(image: image)
+        page.ocrResult = OCRResult(
+            rawText: text,
+            fileNumbers: ["EOS-2026-99410-DE", "24-08912-01-VB"],
+            euroAmounts: [
+                ParsedAmount(raw: "812,50 €", decimal: 812.50),
+                ParsedAmount(raw: "778,50 €", decimal: 778.50)
+            ]
+        )
+        return page
+    }
+
+    // ── 4. REWE Kassenbon (Vorrat) ────────────────────────────────────────
 
     private static func generatePantrySample() -> ScannedPage {
         let text = """

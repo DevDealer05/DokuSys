@@ -59,7 +59,14 @@ struct OnboardingView: View {
             }
             .buttonStyle(PrimaryActionButtonStyle())
             .padding(.horizontal, 32)
-            .padding(.bottom, 60)
+
+            Button("Onboarding überspringen") {
+                sessionManager.hasCompletedOnboarding = true
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+            .padding(.bottom, 50)
         }
     }
     

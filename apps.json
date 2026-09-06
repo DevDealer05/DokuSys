@@ -6,14 +6,14 @@
     "bundleIdentifier": "de.kim.DigitalesBuero",
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
-    "version": "1.1.0",
-    "versionDate": "2026-09-06T20:27:51Z",
-    "versionDescription": "v1.1.0 (Build 10, 36aca40): fix(gemini): resolve HTTP 404 by using gemini-1.5-flash with auto-fallback and trimmed keys (Build 10)",
+    "version": "1.2.2",
+    "versionDate": "2026-09-06T23:04:05Z",
+    "versionDescription": "v1.2.2 (Build 14, adb2ea4): fix(build): resolve authService in scope, DocumentAutoExtractionEngine title generator, and MainActor isolation in ScannerModule",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 2494593,
+    "size": 2835909,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -21,10 +21,10 @@
     ]
   }],
   "news": [{
-    "title": "Digitales Buero v1.1.0 (Build 10)",
-    "identifier": "release-10-36aca40",
-    "caption": "fix(gemini): resolve HTTP 404 by using gemini-1.5-flash with auto-fallback and trimmed keys (Build 10)",
-    "date": "2026-09-06T20:27:51Z",
+    "title": "Digitales Buero v1.2.2 (Build 14)",
+    "identifier": "release-14-adb2ea4",
+    "caption": "fix(build): resolve authService in scope, DocumentAutoExtractionEngine title generator, and MainActor isolation in ScannerModule",
+    "date": "2026-09-06T23:04:05Z",
     "tintColor": "6E5BE8"
   }]
 }

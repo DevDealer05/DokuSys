@@ -163,7 +163,7 @@ struct FloatingTabBarView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     // All displayable tabs for single user mode (camera handled separately as FAB)
-    private let sideTabs: [AppTab] = [.overview, .documents, .chat, .commercial]
+    private let sideTabs: [AppTab] = [.overview, .documents, .chat, .household]
 
     var body: some View {
         HStack(spacing: 0) {
