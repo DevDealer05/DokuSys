@@ -496,11 +496,13 @@ struct PrivacyShieldView<Content: View>: View {
     private func verifyPin() {
         if enteredPin == appPasscode || enteredPin == "0505" || enteredPin == "1984" || enteredPin == "1234" {
             authError = nil
+            AppLogger.shared.success("Sicherheit", "PIN-Code erfolgreich verifiziert.")
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 isRevealed = true
             }
         } else {
             authError = "Falscher Code."
+            AppLogger.shared.error("Sicherheit", "Falscher PIN-Code eingegeben.")
             enteredPin = ""
             withAnimation(.default) { shakeOffset = 8 }
             withAnimation(.default.delay(0.08)) { shakeOffset = -8 }
@@ -522,12 +524,15 @@ struct PrivacyShieldView<Content: View>: View {
                 DispatchQueue.main.async {
                     if success {
                         authError = nil
+                        AppLogger.shared.success("FaceID", "Biometrische Authentifizierung erfolgreich.")
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             isRevealed = true
                         }
                     } else if let laErr = error as? LAError, laErr.code == .userCancel {
-                        // User explicitly cancelled
+                        AppLogger.shared.info("FaceID", "Biometrie-Scan vom Benutzer abgebrochen.")
                     } else {
+                        let msg = error?.localizedDescription ?? "Unbekannter Fehler"
+                        AppLogger.shared.warn("FaceID", "Face ID nicht erkannt (\(msg)) – Wechsel zu PIN-Eingabe.")
                         authError = "Face ID nicht erkannt – nutze deinen Code."
                         withAnimation {
                             showPinMode = true
@@ -541,10 +546,12 @@ struct PrivacyShieldView<Content: View>: View {
                 DispatchQueue.main.async {
                     if success {
                         authError = nil
+                        AppLogger.shared.success("Auth", "Geräte-Passcode Authentifizierung erfolgreich.")
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             isRevealed = true
                         }
                     } else if let laErr = error as? LAError, laErr.code != .userCancel {
+                        AppLogger.shared.warn("Auth", "Geräte-Passcode fehlgeschlagen – Wechsel zu App-PIN.")
                         withAnimation {
                             showPinMode = true
                             isPinFocused = true
@@ -553,6 +560,8 @@ struct PrivacyShieldView<Content: View>: View {
                 }
             }
         } else {
+            let errMsg = policyError?.localizedDescription ?? "Nicht unterstützt"
+            AppLogger.shared.warn("FaceID", "Biometrie nicht verfügbar (\(errMsg)) – PIN-Eingabe aktiv.")
             authError = "Biometrie nicht verfügbar – bitte Code eingeben."
             withAnimation {
                 showPinMode = true

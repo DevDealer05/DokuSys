@@ -93,8 +93,10 @@ final class SubscriptionManager: ObservableObject {
             UserDefaults.standard.set(true, forKey: "is_creator_access")
             UserDefaults.standard.set(true, forKey: "app_commercial_mode")
             UserDefaults.standard.set(true, forKey: "subscription_is_pro")
+            AppLogger.shared.success("Lizenz", "Master/Creator-Code erfolgreich aktiviert: '\(clean)'. Alle Module freigeschaltet.")
             return true
         }
+        AppLogger.shared.warn("Lizenz", "Ungültiger Master/Creator-Code Versuch: '\(clean)'")
         return false
     }
     
@@ -104,6 +106,7 @@ final class SubscriptionManager: ObservableObject {
         guard !isPro else { return }
         checkAndResetMonthlyQuota()
         scansUsedThisMonth += 1
+        AppLogger.shared.info("DMS", "Scan-Quota erfasst: \(scansUsedThisMonth)/\(Self.freeTierScanLimit) verbraucht.")
     }
     
     func purchasePro(monthly: Bool = false) async {
@@ -117,6 +120,7 @@ final class SubscriptionManager: ObservableObject {
             self.isPro = true
             self.isPresentingPaywall = false
         }
+        AppLogger.shared.success("InAppKauf", "Pro-Abonnement erfolgreich aktiviert.")
     }
     
     func restorePurchases() async {
@@ -129,6 +133,7 @@ final class SubscriptionManager: ObservableObject {
             self.isPro = true
             self.isPresentingPaywall = false
         }
+        AppLogger.shared.info("InAppKauf", "Einkäufe wiederhergestellt.")
     }
 
     func unlockWithPromo(code: String) {
@@ -137,6 +142,7 @@ final class SubscriptionManager: ObservableObject {
             self.isPro = true
             self.isPresentingPaywall = false
         }
+        AppLogger.shared.success("Gutschein", "Gutschein-Code '\(code)' erfolgreich eingelöst.")
     }
 }
 

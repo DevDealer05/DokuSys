@@ -584,9 +584,11 @@ public struct CommercialHubView: View {
 
         do {
             try fullCSV.write(to: tempURL, atomically: true, encoding: .utf8)
+            AppLogger.shared.success("DATEV", "DATEV-Buchungsstapel erfolgreich generiert (\(commercialDocuments.count) Belege).")
             self.shareURL = tempURL
             self.showShareSheet = true
         } catch {
+            AppLogger.shared.error("DATEV", "Export fehlgeschlagen: \(error.localizedDescription)")
             self.feedbackMessage = "Fehler beim Exportieren der DATEV-Datei: \(error.localizedDescription)"
             self.showFeedbackAlert = true
         }
