@@ -12,6 +12,11 @@
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AIChatModule.bc",
     "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AIChatModule.o"
   },
+  "/Users/runner/work/DokuSys/DokuSys/AppLogger.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AppLogger.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AppLogger.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AppLogger.o"
+  },
   "/Users/runner/work/DokuSys/DokuSys/AuthService.swift" : {
     "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AuthService.o",
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/AuthService.bc",

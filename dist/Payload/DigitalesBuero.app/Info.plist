@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BUILD_DATE</key>
-	<string>2026-09-06T18:32:30Z</string>
+	<string>2026-09-06T18:45:14Z</string>
 	<key>CFBundleDisplayName</key>
 	<string>Digitales Buero</string>
 	<key>CFBundleExecutable</key>
@@ -54,9 +54,9 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.1.0</string>
 	<key>CFBundleVersion</key>
-	<string>7</string>
+	<string>8</string>
 	<key>GIT_COMMIT_SHA</key>
-	<string>6e133fe</string>
+	<string>002c0fa</string>
 	<key>MinimumOSVersion</key>
 	<string>17.0</string>
 	<key>NSCameraUsageDescription</key>

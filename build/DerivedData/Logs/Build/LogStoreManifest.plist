@@ -5,6 +5,49 @@
 	<key>logFormatVersion</key>
 	<integer>11</integer>
 	<key>logs</key>
-	<dict/>
+	<dict>
+		<key>7D68C219-A5C8-4020-A85F-3A0382EBB895</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>7D68C219-A5C8-4020-A85F-3A0382EBB895.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>DokuSys</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>DigitalesBuero</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>810413140.09527397</real>
+			<key>timeStoppedRecording</key>
+			<real>810413199.26640797</real>
+			<key>title</key>
+			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>7D68C219-A5C8-4020-A85F-3A0382EBB895</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

@@ -42,7 +42,9 @@ final class DevModeStore: ObservableObject {
 
 struct DevModeBanner: View {
     @EnvironmentObject var store: DevModeStore
+    @ObservedObject private var logger = AppLogger.shared
     @State private var showAIChat: Bool = false
+    @State private var showConsole: Bool = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -51,6 +53,25 @@ struct DevModeBanner: View {
                 .font(.caption.bold())
                 .kerning(1)
             Spacer()
+            Button {
+                showConsole = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "terminal.fill")
+                    Text("Konsole")
+                        .font(.caption.bold())
+                    if logger.errorCount > 0 {
+                        Text("\(logger.errorCount)")
+                            .font(.system(size: 9, weight: .black))
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Color.red, in: Capsule())
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.3), in: Capsule())
+            }
+
             Button {
                 showAIChat = true
             } label: {
@@ -76,6 +97,9 @@ struct DevModeBanner: View {
         .foregroundColor(.white)
         .sheet(isPresented: $showAIChat) {
             AIChatSheet()
+        }
+        .sheet(isPresented: $showConsole) {
+            ConsoleLogView()
         }
     }
 }
@@ -129,6 +153,61 @@ struct DevModePanel: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.43, green: 0.36, blue: 0.91))
+                }
+
+                // 0.5 — Live-Konsole & Error-Log
+                devCard(title: "Live-Konsole & Error-Log", icon: "terminal.fill") {
+                    Text("Echtzeit-Diagnose, System-Meldungen, Netzwerk-Aufrufe und Fehlerprotokoll direkt in der App.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 12) {
+                        HStack(spacing: 4) {
+                            Text("\(AppLogger.shared.entries.count)")
+                                .font(.subheadline.monospaced().bold())
+                            Text("Logs")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        if AppLogger.shared.errorCount > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("\(AppLogger.shared.errorCount) Fehler")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.red)
+                            }
+                        }
+
+                        if AppLogger.shared.warningCount > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("\(AppLogger.shared.warningCount) Warnungen")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+
+                    NavigationLink {
+                        ConsoleLogView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "terminal.fill")
+                            Text("Live-Konsole öffnen")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.green)
                 }
 
                 // A — Build Info

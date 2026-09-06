@@ -7,13 +7,13 @@
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
     "version": "1.1.0",
-    "versionDate": "2026-09-06T18:33:21Z",
-    "versionDescription": "v1.1.0 (Build 7, 6e133fe): fix(build): resolve Substring type in CommercialModule, AnyShapeStyle in DocumentArchiveModule, and exhaustive switch in LiquidGlass",
+    "versionDate": "2026-09-06T18:46:46Z",
+    "versionDescription": "v1.1.0 (Build 8, 002c0fa): fix(logger): make AppLogger thread-safe and internal, add build error logging",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 2345448,
+    "size": 2445679,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -21,10 +21,10 @@
     ]
   }],
   "news": [{
-    "title": "Digitales Buero v1.1.0 (Build 7)",
-    "identifier": "release-7-6e133fe",
-    "caption": "fix(build): resolve Substring type in CommercialModule, AnyShapeStyle in DocumentArchiveModule, and exhaustive switch in LiquidGlass",
-    "date": "2026-09-06T18:33:21Z",
+    "title": "Digitales Buero v1.1.0 (Build 8)",
+    "identifier": "release-8-002c0fa",
+    "caption": "fix(logger): make AppLogger thread-safe and internal, add build error logging",
+    "date": "2026-09-06T18:46:46Z",
     "tintColor": "6E5BE8"
   }]
 }

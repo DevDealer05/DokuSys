@@ -424,7 +424,23 @@ struct UserSettingsView: View {
                             .environmentObject(DevModeStore())
                             .navigationTitle("Entwickler-Panel")
                     } label: {
-                        row("Entwickler-Panel öffnen", icon: "terminal.fill", color: .green)
+                        row("Entwickler-Panel öffnen", icon: "hammer.circle.fill", color: .green)
+                    }
+                    NavigationLink {
+                        ConsoleLogView()
+                    } label: {
+                        HStack {
+                            row("Live-Konsole & Error-Log", icon: "terminal.fill", color: .indigo)
+                            Spacer()
+                            if AppLogger.shared.errorCount > 0 {
+                                Text("\(AppLogger.shared.errorCount) FEHLER")
+                                    .font(.caption2.bold())
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red, in: Capsule())
+                                    .foregroundColor(.white)
+                            }
+                        }
                     }
                 } header: { hdr("Entwickler & KI", icon: "hammer") }
                   footer: { Text("Im Entwickler-Modus hast du Zugang zum KI-Chat, Code-Modus und Testdaten-Generator.") }
