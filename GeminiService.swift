@@ -91,16 +91,29 @@ final class GeminiService: ObservableObject {
                     return
                 }
 
-                // Model fallback chain: Primary is the globally available, stable gemini-1.5-flash
-                let candidateModels = [
-                    "gemini-1.5-flash",
+                // Model fallback chain:
+                // Google explicitly requires 'gemini-3.6-flash' as of recent updates
+                var candidateModels = [
+                    "gemini-3.6-flash",
+                    "gemini-3.6-pro",
+                    "gemini-2.5-flash",
+                    "gemini-2.5-pro",
+                    "gemini-flash-latest",
+                    "gemini-pro-latest",
                     "gemini-2.0-flash",
-                    "gemini-1.5-pro",
-                    "gemini-2.0-flash-exp"
+                    "gemini-1.5-flash"
                 ]
+
+                // If a previously working model was saved, test it first
+                if let lastWorking = UserDefaults.standard.string(forKey: "last_working_gemini_model"),
+                   !lastWorking.isEmpty {
+                    candidateModels.removeAll { $0 == lastWorking }
+                    candidateModels.insert(lastWorking, at: 0)
+                }
 
                 var lastErrorDescription = "HTTP 404 (Modell nicht gefunden)"
 
+                // 1. Try hardcoded / cached candidates
                 for (idx, model) in candidateModels.enumerated() {
                     do {
                         AppLogger.shared.info("KI-Chat", "Sende Anfrage an Modell '\(model)' (Versuch \(idx + 1)/\(candidateModels.count))...")
@@ -115,6 +128,7 @@ final class GeminiService: ObservableObject {
                             continuation: continuation
                         )
                         if success {
+                            UserDefaults.standard.set(model, forKey: "last_working_gemini_model")
                             AppLogger.shared.success("KI-Chat", "Gemini-Stream erfolgreich empfangen über '\(model)'.")
                             continuation.finish()
                             return
@@ -130,9 +144,68 @@ final class GeminiService: ObservableObject {
                     }
                 }
 
+                // 2. Dynamic discovery via ListModels API if static candidates failed
+                AppLogger.shared.info("KI-Chat", "Frage verfügbare Modelle via Google Model-API ab...")
+                let dynamicModels = await self.fetchAvailableModels(apiKey: cleanKey)
+                for dynModel in dynamicModels {
+                    guard !candidateModels.contains(dynModel) else { continue }
+                    do {
+                        AppLogger.shared.info("KI-Chat", "Teste dynamisch erkanntes Modell '\(dynModel)'...")
+                        let success = try await self.executeStream(
+                            model: dynModel,
+                            apiKey: cleanKey,
+                            prompt: prompt,
+                            systemContext: systemContext,
+                            history: history,
+                            imageData: imageData,
+                            imageMimeType: imageMimeType,
+                            continuation: continuation
+                        )
+                        if success {
+                            UserDefaults.standard.set(dynModel, forKey: "last_working_gemini_model")
+                            AppLogger.shared.success("KI-Chat", "Gemini-Stream erfolgreich empfangen über '\(dynModel)'.")
+                            continuation.finish()
+                            return
+                        }
+                    } catch {
+                        lastErrorDescription = error.localizedDescription
+                        continue
+                    }
+                }
+
                 AppLogger.shared.error("KI-Chat", "Alle Modelle fehlgeschlagen: \(lastErrorDescription)")
                 continuation.finish(throwing: GeminiError.networkError(lastErrorDescription))
             }
+        }
+    }
+
+    /// Fragt die Liste der aktuell für den API-Key freigeschalteten Modelle ab
+    private func fetchAvailableModels(apiKey: String) async -> [String] {
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models?key=\(apiKey)") else { return [] }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { return [] }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let modelList = json["models"] as? [[String: Any]] else { return [] }
+
+            var suitable: [String] = []
+            for item in modelList {
+                guard let name = item["name"] as? String else { continue }
+                let supportedMethods = (item["supportedGenerationMethods"] as? [String]) ?? []
+                if supportedMethods.contains("generateContent") {
+                    let cleanName = name.hasPrefix("models/") ? String(name.dropFirst("models/".count)) : name
+                    if cleanName.contains("flash") {
+                        suitable.insert(cleanName, at: 0)
+                    } else {
+                        suitable.append(cleanName)
+                    }
+                }
+            }
+            AppLogger.shared.info("KI-Chat", "Dynamisch gefundene Modelle: \(suitable.joined(separator: ", "))")
+            return suitable
+        } catch {
+            AppLogger.shared.warn("KI-Chat", "Modell-Abfrage fehlgeschlagen: \(error.localizedDescription)")
+            return []
         }
     }
 

@@ -101,7 +101,7 @@ Bei reinen Fragen ohne Code-Änderung: Antworte normal auf Deutsch.
 ${context ? 'Zusätzlicher Kontext: ' + context : ''}`
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

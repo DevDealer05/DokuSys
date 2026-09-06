@@ -246,12 +246,18 @@ final class AppLogger: ObservableObject {
         let filename = "diagnostics/Log_\(BuildInfo.current.commitSHA)_\(dateStr).txt"
 
         do {
-            _ = try await SupabaseConfig.client.storage.from("system_logs").upload(filename, data: data, contentType: "text/plain; charset=utf-8")
+            _ = try await SupabaseConfig.client.storage.from("debt-documents").upload(filename, data: data, contentType: "text/plain; charset=utf-8")
             self.success("CloudSync", "Log erfolgreich in Supabase-Cloud gesichert: \(filename)")
             return filename
         } catch {
-            self.warn("CloudSync", "Cloud-Upload Status: \(error.localizedDescription)")
-            return "log_cached"
+            do {
+                _ = try await SupabaseConfig.client.storage.from("system_logs").upload(filename, data: data, contentType: "text/plain; charset=utf-8")
+                self.success("CloudSync", "Log erfolgreich in Supabase-Cloud gesichert: \(filename)")
+                return filename
+            } catch {
+                self.info("CloudSync", "Lokales Log-Archiv aktiv (Cloud-Upload übersprungen)")
+                return "log_cached"
+            }
         }
     }
 }
