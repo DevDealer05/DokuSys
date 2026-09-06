@@ -92,6 +92,7 @@ struct AuthenticatedScopeView: View {
     @StateObject private var userProfileService: UserProfileService
     @StateObject private var appSettings:        AppSettingsStore
 
+    @EnvironmentObject private var authService:    AuthService
     @EnvironmentObject private var sessionManager: UserSessionManager
 
     @Environment(\.scenePhase) private var scenePhase

@@ -258,6 +258,12 @@ public enum DocumentAutoExtractionEngine {
         return parseDocumentText(fullText)
     }
 
+    /// Generiert einen intelligenten Titel basierend auf Belegtext, Kategorie und Absender
+    public static func generateSmartDocumentTitle(ocrText: String, category: DocumentCategory? = nil, sender: String? = nil) -> String {
+        let (_, title) = classifyAndTitle(from: ocrText, sender: sender, fileNumber: nil, amount: nil)
+        return title
+    }
+
     // ── Text Parsing & NLP Heuristics ──────────────────────────────────────
 
     private static func parseDocumentText(_ text: String) -> ExtractedDocumentData {

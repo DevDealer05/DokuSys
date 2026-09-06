@@ -369,6 +369,7 @@ struct TriageItem: Identifiable {
     var matchedDebtId: UUID?
     var notes: String
 
+    @MainActor
     init(page: ScannedPage, engine: DebtEngineService? = nil) {
         self.page = page
         self.ocr = page.ocrResult
