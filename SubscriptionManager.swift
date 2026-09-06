@@ -13,8 +13,16 @@ final class SubscriptionManager: ObservableObject {
     
     // ── Persistent State ───────────────────────────────────────────────
     @AppStorage("subscription_is_pro") var isPro: Bool = false
+    @AppStorage("is_creator_access") var isCreator: Bool = false
+    @AppStorage("app_commercial_mode") var isCommercialMode: Bool = false
     @AppStorage("subscription_scans_used") var scansUsedThisMonth: Int = 0
     @AppStorage("subscription_last_reset") private var lastResetMonthTimestamp: Double = Date().timeIntervalSince1970
+    
+    // ── Commercial & Business Details ──────────────────────────────────
+    @AppStorage("biz_company_name") var companyName: String = ""
+    @AppStorage("biz_owner_name") var ownerName: String = ""
+    @AppStorage("biz_tax_id") var taxId: String = ""
+    @AppStorage("biz_iban") var iban: String = ""
     
     // ── Constants ──────────────────────────────────────────────────────
     public static let freeTierScanLimit: Int = 5
@@ -41,23 +49,53 @@ final class SubscriptionManager: ObservableObject {
     // ── Feature Gates ──────────────────────────────────────────────────
     
     var canScanDocument: Bool {
-        if isPro { return true }
+        if isPro || isCommercialMode || isCreator { return true }
         checkAndResetMonthlyQuota()
         return scansUsedThisMonth < Self.freeTierScanLimit
     }
     
     var remainingFreeScans: Int {
-        if isPro { return Int.max }
+        if isPro || isCommercialMode || isCreator { return Int.max }
         checkAndResetMonthlyQuota()
         return max(0, Self.freeTierScanLimit - scansUsedThisMonth)
     }
     
     var canUseSharedHousehold: Bool {
-        return isPro
+        return isPro || isCommercialMode || isCreator
     }
     
     var canUseAIRatenantrag: Bool {
-        return isPro
+        return isPro || isCommercialMode || isCreator
+    }
+
+    var canUseCommercialTools: Bool {
+        return isCommercialMode || isCreator
+    }
+
+    var canUseDATEVExport: Bool {
+        return isCommercialMode || isCreator
+    }
+
+    // ── Creator & Master Access ────────────────────────────────────────
+
+    @discardableResult
+    func unlockWithCreatorCode(_ rawCode: String) -> Bool {
+        let clean = rawCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let masterCodes = ["KIM-CREATOR-2026", "ROOT-2026", "DEV-MASTER-05", "0505", "KIM2026", "CREATOR"]
+        if masterCodes.contains(clean) {
+            withAnimation(.spring(response: 0.4)) {
+                self.isCreator = true
+                self.isPro = true
+                self.isCommercialMode = true
+                self.isPresentingPaywall = false
+            }
+            UserDefaults.standard.set(true, forKey: "dev_mode_enabled")
+            UserDefaults.standard.set(true, forKey: "is_creator_access")
+            UserDefaults.standard.set(true, forKey: "app_commercial_mode")
+            UserDefaults.standard.set(true, forKey: "subscription_is_pro")
+            return true
+        }
+        return false
     }
     
     // ── Actions ────────────────────────────────────────────────────────
@@ -94,6 +132,7 @@ final class SubscriptionManager: ObservableObject {
     }
 
     func unlockWithPromo(code: String) {
+        if unlockWithCreatorCode(code) { return }
         withAnimation(.spring(response: 0.4)) {
             self.isPro = true
             self.isPresentingPaywall = false

@@ -49,6 +49,12 @@ struct AIChatView: View {
 
     private let storageKey = "chat_history_v1"
 
+    init(initialPrompt: String? = nil) {
+        if let initialPrompt = initialPrompt {
+            _inputText = State(initialValue: initialPrompt)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Mode picker (only in dev mode)
@@ -642,11 +648,12 @@ struct MessageBubbleView: View {
 // MARK: - AIChatSheet
 
 struct AIChatSheet: View {
+    var initialPrompt: String? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            AIChatView()
+            AIChatView(initialPrompt: initialPrompt)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Schließen") {

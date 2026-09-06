@@ -296,6 +296,11 @@ struct AppRootView: View {
                 AIChatView()
             }
 
+        case .commercial:
+            NavigationStack {
+                CommercialHubView(documentService: documentService)
+            }
+
         case .devMode:
             NavigationStack {
                 DevModePanel()
@@ -460,6 +465,22 @@ struct OverviewView: View {
         .navigationTitle("Übersicht")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if SubscriptionManager.shared.isCreator {
+                    Text("ROOT")
+                        .font(.system(size: 9, weight: .black))
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Theme.primaryAccent, in: Capsule())
+                        .foregroundStyle(.white)
+                } else if SubscriptionManager.shared.isCommercialMode {
+                    Text("COMMERCIAL")
+                        .font(.system(size: 8, weight: .bold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.green.opacity(0.2), in: Capsule())
+                        .foregroundStyle(.green)
+                }
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showSettingsSheet = true

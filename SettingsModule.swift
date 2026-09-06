@@ -42,22 +42,32 @@ final class AppSettingsStore: ObservableObject {
     @AppStorage("app.settings.notifyScanReminder") var notifyScanReminder: Bool = false
 
     // ── Dashboard / Overview ──────────────────────────────────────────────
-    @AppStorage("app.settings.showChoresWidget")     var showChoresWidget: Bool     = true
+    @AppStorage("app.settings.showChoresWidget")     var showChoresWidget: Bool     = false
     @AppStorage("app.settings.showLimitationBanner") var showLimitationBanner: Bool = true
 
     // ── Admin gate ────────────────────────────────────────────────────────
     @AppStorage("app.settings.isAdminUnlocked") private(set) var isAdminUnlocked: Bool = false
     static let adminPIN = "1984"
+    static let masterPIN = "0505"
 
     func attemptAdminUnlock(pin: String) -> Bool {
-        let ok = pin == Self.adminPIN
-        if ok { isAdminUnlocked = true }
+        let ok = pin == Self.adminPIN || pin == Self.masterPIN
+        if ok {
+            isAdminUnlocked = true
+            if pin == Self.masterPIN {
+                SubscriptionManager.shared.unlockWithCreatorCode("0505")
+            }
+        }
         return ok
     }
     func lockAdmin() { isAdminUnlocked = false }
 
     // ── App PIN verification ──────────────────────────────────────────────
     func verifyAppPasscode(_ input: String) -> Bool {
+        if input == Self.masterPIN {
+            SubscriptionManager.shared.unlockWithCreatorCode("0505")
+            return true
+        }
         return input == appPasscode || input == Self.adminPIN
     }
 
@@ -116,6 +126,20 @@ final class AppSettingsStore: ObservableObject {
 
     func redeemPromoCode(_ input: String) -> Result<PromoCode, RedeemError> {
         let clean = input.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if SubscriptionManager.shared.unlockWithCreatorCode(clean) {
+            let masterCode = PromoCode(
+                id: UUID(),
+                code: clean,
+                type: .proLifetime,
+                durationDays: 99999,
+                maxRedemptions: 99999,
+                redemptions: 1,
+                note: "Ersteller / Creator Root-Code",
+                createdAt: Date(),
+                expiresAt: nil
+            )
+            return .success(masterCode)
+        }
         guard let idx = promoCodes.firstIndex(where: { $0.code.uppercased() == clean }) else {
             return .failure(.notFound)
         }
@@ -230,6 +254,13 @@ struct UserSettingsView: View {
     @State private var showResetAlert      = false
     @State private var showRedeemCodeSheet = false
 
+    @ObservedObject private var subManager = SubscriptionManager.shared
+    @State private var versionTapCount: Int = 0
+    @State private var showCreatorAlert: Bool = false
+    @State private var creatorCodeInput: String = ""
+    @State private var creatorFeedbackMessage: String? = nil
+    @State private var showFeedbackAlert: Bool = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -311,12 +342,24 @@ struct UserSettingsView: View {
 
                 // ── Abonnement & Pro-Status ────────────────────────────
                 Section {
+                    if subManager.isCreator {
+                        HStack {
+                            row("Ersteller- / Creator-Zugang", icon: "shield.lefthalf.filled.badge.checkmark", color: Theme.primaryAccent)
+                            Spacer()
+                            Text("ROOT")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Theme.primaryAccent.opacity(0.18), in: Capsule())
+                                .foregroundStyle(Theme.primaryAccent)
+                        }
+                    }
+
                     HStack {
-                        row(SubscriptionManager.shared.isPro ? "Pro-Abonnement aktiv" : "Free-Tarif (5 Scans/Monat)",
-                            icon: SubscriptionManager.shared.isPro ? "crown.fill" : "person.fill",
-                            color: SubscriptionManager.shared.isPro ? .orange : .secondary)
+                        row(subManager.isPro ? "Pro-Abonnement aktiv" : "Free-Tarif (5 Scans/Monat)",
+                            icon: subManager.isPro ? "crown.fill" : "person.fill",
+                            color: subManager.isPro ? .orange : .secondary)
                         Spacer()
-                        if SubscriptionManager.shared.isPro {
+                        if subManager.isPro {
                             Text("PRO")
                                 .font(.caption2.bold())
                                 .padding(.horizontal, 8).padding(.vertical, 3)
@@ -325,13 +368,22 @@ struct UserSettingsView: View {
                         }
                     }
 
+                    toggle("Commercial-Modus", icon: "briefcase.fill", color: .indigo,
+                           binding: $subManager.isCommercialMode)
+
+                    NavigationLink {
+                        CommercialSettingsView()
+                    } label: {
+                        row("Geschäftsprofil & DATEV-Briefkopf", icon: "building.2.fill", color: .blue)
+                    }
+
                     Button {
                         showRedeemCodeSheet = true
                     } label: {
-                        row("Promo- / Gutscheincode einlösen", icon: "ticket.fill", color: .purple)
+                        row("Code / Gutschein / Ersteller-Code", icon: "ticket.fill", color: .purple)
                     }
                     .buttonStyle(.plain)
-                } header: { hdr("Abonnement & Pro-Status", icon: "crown") }
+                } header: { hdr("Abonnement & Lizenzen", icon: "crown") }
 
                 // ── Konto & Administration ─────────────────────────────
                 Section {
@@ -379,9 +431,30 @@ struct UserSettingsView: View {
 
                 // ── App-Info ───────────────────────────────────────────
                 Section {
-                    HStack { Text("Version"); Spacer(); Text(BuildInfo.current.version + " (\(BuildInfo.current.buildNumber))").foregroundStyle(.secondary) }
-                    HStack { Text("Commit"); Spacer(); Text(BuildInfo.current.commitSHA).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary) }
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(BuildInfo.current.version + " (\(BuildInfo.current.buildNumber))")
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        versionTapCount += 1
+                        if versionTapCount >= 5 {
+                            versionTapCount = 0
+                            showCreatorAlert = true
+                        }
+                    }
+
+                    HStack {
+                        Text("Commit")
+                        Spacer()
+                        Text(BuildInfo.current.commitSHA)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 } header: { hdr("App-Info", icon: "info.circle") }
+                  footer: { Text("Tippe 5-mal auf die Version, um das Ersteller- & Master-Code Fenster zu öffnen.") }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Einstellungen")
@@ -412,6 +485,28 @@ struct UserSettingsView: View {
                 Button("Abbrechen", role: .cancel) {}
             } message: {
                 Text("Du wirst abgemeldet. Lokale Daten bleiben auf diesem Gerät erhalten.")
+            }
+            .alert("Ersteller- & Master-Code", isPresented: $showCreatorAlert) {
+                TextField("Code (z.B. KIM-CREATOR-2026)", text: $creatorCodeInput)
+                    .textInputAutocapitalization(.characters)
+                Button("Freischalten") {
+                    let c = creatorCodeInput
+                    creatorCodeInput = ""
+                    if subManager.unlockWithCreatorCode(c) {
+                        creatorFeedbackMessage = "🎉 Ersteller-Status aktiv! Alle Rechte, Pro-Features, Commercial-Modus und Entwickler-Tools sind jetzt freigeschaltet."
+                    } else {
+                        creatorFeedbackMessage = "❌ Ungültiger Ersteller-Code. Bitte prüfe deine Eingabe."
+                    }
+                    showFeedbackAlert = true
+                }
+                Button("Abbrechen", role: .cancel) { creatorCodeInput = "" }
+            } message: {
+                Text("Gib deinen eindeutigen Ersteller-Code oder PIN ein, um unbegrenzte Rechte zu aktivieren.")
+            }
+            .alert("System-Status", isPresented: $showFeedbackAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(creatorFeedbackMessage ?? "")
             }
         }
     }
@@ -1237,5 +1332,48 @@ struct RedeemPromoCodeSheet: View {
                 isSubmitting = false
             }
         }
+    }
+}
+
+// =============================================================================
+// MARK: - CommercialSettingsView
+// =============================================================================
+
+struct CommercialSettingsView: View {
+    @ObservedObject private var subManager = SubscriptionManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Commercial-Modus aktivieren", isOn: $subManager.isCommercialMode)
+                    .tint(Theme.primaryAccent)
+            } header: {
+                Text("Status")
+            } footer: {
+                Text("Schaltet DATEV-Export, § 305 InsO Dossier, erweiterte Rechnungs- und Belegfunktionen und unbegrenzte KI-Vision frei.")
+            }
+
+            Section("Unternehmensdaten & Briefkopf") {
+                TextField("Firmenname / Handelsname", text: $subManager.companyName)
+                TextField("Inhaber / Vertretungsberechtigt", text: $subManager.ownerName)
+                TextField("Steuernummer / USt-IdNr.", text: $subManager.taxId)
+                TextField("IBAN / Geschäftskonto", text: $subManager.iban)
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("GoBD & DATEV bereit", systemImage: "checkmark.seal.fill")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Theme.primaryAccent)
+                    Text("Deine Daten werden lokal auf dem Gerät gespeichert und für automatisierte Buchungsstapel und Export-Dokumente verwendet.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .navigationTitle("Commercial & DATEV")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

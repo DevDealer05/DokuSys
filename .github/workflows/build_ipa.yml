@@ -90,6 +90,7 @@ jobs:
           include_files: |
             DigitalesBuero.ipa
             apps.json
+            build_info.json
           exclude_files: |
             .build/**
             dist/**
