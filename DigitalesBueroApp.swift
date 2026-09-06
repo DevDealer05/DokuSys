@@ -492,11 +492,16 @@ struct OverviewView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            // The actual balance is wrapped by PrivacyShieldView
-            Text(formatCurrency(debtEngine.totalActivePrincipal))
-                .font(.system(size: 40, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .privacyShield(isRevealed: $isSensitiveRevealed)
+            // The actual balance is wrapped by PrivacyShieldView and centered
+            HStack {
+                Spacer()
+                Text(formatCurrency(debtEngine.totalActivePrincipal))
+                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .privacyShield(isRevealed: $isSensitiveRevealed)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
 
             // Quick stats row
             HStack(spacing: 20) {

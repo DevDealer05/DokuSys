@@ -119,6 +119,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
     public var fileNumber:   String?
     public var amount:       Decimal?
     public var storagePath:  String?
+    public var localFileName: String?
     public var fileType:     DocumentFileType
     public var ocrText:      String?
     public var tags:         [String]
@@ -138,6 +139,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         fileNumber:   String? = nil,
         amount:       Decimal? = nil,
         storagePath:  String? = nil,
+        localFileName: String? = nil,
         fileType:     DocumentFileType = .image,
         ocrText:      String? = nil,
         tags:         [String] = [],
@@ -156,6 +158,7 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         self.fileNumber   = fileNumber
         self.amount       = amount
         self.storagePath  = storagePath
+        self.localFileName = localFileName
         self.fileType     = fileType
         self.ocrText      = ocrText
         self.tags         = tags
@@ -163,6 +166,13 @@ public struct AppDocument: Identifiable, Codable, Sendable {
         self.notes        = notes
         self.createdAt    = createdAt
         self.updatedAt    = updatedAt
+    }
+
+    public var localFileURL: URL? {
+        guard let name = localFileName else { return nil }
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files", isDirectory: true)
+        let file = dir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: file.path) ? file : nil
     }
 
     public var isDeadlineUrgent: Bool {
@@ -556,14 +566,22 @@ public final class DocumentArchiveService: ObservableObject {
     ) async throws -> AppDocument {
         let ext = fileType == .pdf ? "pdf" : "jpg"
         let mimeType = fileType == .pdf ? "application/pdf" : "image/jpeg"
-        let fileName = "\(userId.uuidString)/\(UUID().uuidString).\(ext)"
+        let id = UUID()
+        let fileName = "\(userId.uuidString)/\(id.uuidString).\(ext)"
+
+        // Always save locally first so files open reliably offline & without 404
+        let localName = "\(id.uuidString).\(ext)"
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let localURL = dir.appendingPathComponent(localName)
+        try? data.write(to: localURL)
 
         _ = try? await SupabaseConfig.client.storage
             .from("documents")
             .upload(fileName, data: data, contentType: mimeType)
 
         let doc = AppDocument(
-            id:           UUID(),
+            id:           id,
             userId:       userId,
             title:        title,
             category:     category,
@@ -573,6 +591,7 @@ public final class DocumentArchiveService: ObservableObject {
             fileNumber:   fileNumber,
             amount:       amount,
             storagePath:  fileName,
+            localFileName: localName,
             fileType:     fileType,
             ocrText:      ocrText,
             tags:         tags,
@@ -960,11 +979,17 @@ public struct DocumentCardRow: View {
 
 public struct DocumentDetailView: View {
     public let document: AppDocument
-    public let service:  DocumentArchiveService
+    @ObservedObject public var service: DocumentArchiveService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showOCRDrawer: Bool = false
     @State private var isCopied:      Bool = false
+    @State private var showFileViewer: Bool = false
+    @State private var previewURL: URL? = nil
+
+    public var currentDoc: AppDocument {
+        service.documents.first(where: { $0.id == document.id }) ?? document
+    }
 
     public var body: some View {
         ScrollView {
@@ -972,7 +997,7 @@ public struct DocumentDetailView: View {
                 documentPreviewCard
                 metadataSection
                 deadlineSection
-                if let ocr = document.ocrText, !ocr.isEmpty {
+                if let ocr = currentDoc.ocrText, !ocr.isEmpty {
                     ocrTextSection(ocr)
                 }
                 tagsAndNotesSection
@@ -980,11 +1005,16 @@ public struct DocumentDetailView: View {
             }
             .padding(16)
         }
-        .navigationTitle(document.title)
+        .navigationTitle(currentDoc.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Fertig") { dismiss() }
+            }
+        }
+        .sheet(isPresented: $showFileViewer) {
+            if let url = previewURL {
+                ShareSheet(items: [url])
             }
         }
     }
@@ -997,15 +1027,24 @@ public struct DocumentDetailView: View {
                     .frame(height: 160)
 
                 VStack(spacing: 10) {
-                    Image(systemName: document.fileType == .pdf ? "doc.richtext.fill" : "doc.text.image.fill")
+                    Image(systemName: currentDoc.fileType == .pdf ? "doc.richtext.fill" : "doc.text.image.fill")
                         .font(.system(size: 44))
                         .foregroundStyle(Theme.primaryAccent)
 
-                    Text(document.fileType == .pdf ? "PDF-Dokument" : "Dokumenten-Scan")
+                    Text(currentDoc.fileType == .pdf ? "PDF-Dokument" : "Dokumenten-Scan")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    if let path = document.storagePath {
+                    if let localURL = currentDoc.localFileURL {
+                        Button {
+                            previewURL = localURL
+                            showFileViewer = true
+                        } label: {
+                            Label("Originaldatei anzeigen / teilen", systemImage: "arrow.up.right.square")
+                                .font(.caption.bold())
+                        }
+                        .tint(Theme.primaryAccent)
+                    } else if let path = currentDoc.storagePath {
                         let fullURL = SupabaseConfig.url.appendingPathComponent("storage/v1/object/public/documents/\(path)")
                         Link(destination: fullURL) {
                             Label("Originaldatei anzeigen", systemImage: "arrow.up.right.square")
@@ -1024,17 +1063,17 @@ public struct DocumentDetailView: View {
             Text("Hauptdaten")
                 .font(.headline)
 
-            detailRow("Kategorie", value: document.category.rawValue, icon: document.category.icon, color: document.category.color)
-            if let sender = document.sender {
+            detailRow("Kategorie", value: currentDoc.category.rawValue, icon: currentDoc.category.icon, color: currentDoc.category.color)
+            if let sender = currentDoc.sender {
                 detailRow("Absender / Firma", value: sender, icon: "person.crop.circle", color: .blue)
             }
-            if let fn = document.fileNumber {
+            if let fn = currentDoc.fileNumber {
                 detailRow("Aktenzeichen / Nr.", value: fn, icon: "number", color: .purple)
             }
-            if let amt = document.amount {
+            if let amt = currentDoc.amount {
                 detailRow("Betrag", value: amt.formatted(.currency(code: "EUR")), icon: "eurosign.circle.fill", color: .green)
             }
-            detailRow("Belegdatum", value: document.documentDate.formatted(date: .long, time: .omitted), icon: "calendar", color: .teal)
+            detailRow("Belegdatum", value: currentDoc.documentDate.formatted(date: .long, time: .omitted), icon: "calendar", color: .teal)
         }
         .padding(14)
         .liquidGlassCard(cornerRadius: 18)
@@ -1062,23 +1101,23 @@ public struct DocumentDetailView: View {
                 Label("Frist & Wiedervorlage", systemImage: "calendar.badge.clock")
                     .font(.headline)
                 Spacer()
-                if document.dueDate != nil {
-                    Text(document.isOverdue ? "Abgelaufen" : "Aktiv")
+                if currentDoc.dueDate != nil {
+                    Text(currentDoc.isOverdue ? "Abgelaufen" : "Aktiv")
                         .font(.caption2.bold())
-                        .foregroundStyle(document.isOverdue ? Color.red : Color.green)
+                        .foregroundStyle(currentDoc.isOverdue ? Color.red : Color.green)
                         .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background((document.isOverdue ? Color.red : Color.green).opacity(0.12), in: Capsule())
+                        .background((currentDoc.isOverdue ? Color.red : Color.green).opacity(0.12), in: Capsule())
                 }
             }
 
-            if let due = document.dueDate {
+            if let due = currentDoc.dueDate {
                 HStack {
                     Text("Fälligkeitsdatum:")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text(due.formatted(date: .long, time: .omitted))
                         .bold()
-                        .foregroundStyle(document.isOverdue ? Color.red : (document.isDeadlineUrgent ? Color.orange : Color.primary))
+                        .foregroundStyle(currentDoc.isOverdue ? Color.red : (currentDoc.isDeadlineUrgent ? Color.orange : Color.primary))
                 }
             } else {
                 Text("Keine Frist für dieses Dokument hinterlegt.")
@@ -1131,9 +1170,9 @@ public struct DocumentDetailView: View {
             Text("Schlagwörter & Notizen")
                 .font(.headline)
 
-            if !document.tags.isEmpty {
+            if !currentDoc.tags.isEmpty {
                 HStack(spacing: 6) {
-                    ForEach(document.tags, id: \.self) { tag in
+                    ForEach(currentDoc.tags, id: \.self) { tag in
                         Text("#\(tag)")
                             .font(.caption2.bold())
                             .foregroundStyle(Theme.primaryAccent)
@@ -1143,7 +1182,7 @@ public struct DocumentDetailView: View {
                 }
             }
 
-            if let notes = document.notes, !notes.isEmpty {
+            if let notes = currentDoc.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -1158,30 +1197,26 @@ public struct DocumentDetailView: View {
             Menu {
                 ForEach(DocumentStatus.allCases) { st in
                     Button {
-                        Task { @MainActor in
-                            service.updateStatus(document.id, newStatus: st)
-                        }
+                        service.updateStatus(document.id, newStatus: st)
                     } label: {
                         Label(st.rawValue, systemImage: st.icon)
                     }
                 }
             } label: {
                 HStack {
-                    Label("Status: \(document.status.rawValue)", systemImage: document.status.icon)
+                    Label("Status: \(currentDoc.status.rawValue)", systemImage: currentDoc.status.icon)
                     Spacer()
                     Image(systemName: "chevron.up.chevron.down")
                 }
                 .font(.subheadline.bold())
                 .padding()
-                .background(document.status.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
-                .foregroundStyle(document.status.color)
+                .background(currentDoc.status.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(currentDoc.status.color)
             }
 
             Button(role: .destructive) {
-                Task { @MainActor in
-                    service.deleteDocument(document.id)
-                    dismiss()
-                }
+                service.deleteDocument(document.id)
+                dismiss()
             } label: {
                 Label("Dokument löschen", systemImage: "trash")
                     .font(.subheadline.bold())
@@ -1457,15 +1492,20 @@ public struct AddDocumentSheet: View {
 // MARK: - 8. UIKit Wrappers for Pickers
 // =============================================================================
 
-private struct DocumentImagePicker: UIViewControllerRepresentable {
+struct DocumentImagePicker: UIViewControllerRepresentable {
+    var sourceType: UIImagePickerController.SourceType = .photoLibrary
     var onPick: (UIImage?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
-        picker.delegate   = context.coordinator
+        if UIImagePickerController.isSourceTypeAvailable(sourceType) {
+            picker.sourceType = sourceType
+        } else {
+            picker.sourceType = .photoLibrary
+        }
+        picker.delegate = context.coordinator
         return picker
     }
 
@@ -1486,7 +1526,7 @@ private struct DocumentImagePicker: UIViewControllerRepresentable {
     }
 }
 
-private struct DocumentFilePicker: UIViewControllerRepresentable {
+struct DocumentFilePicker: UIViewControllerRepresentable {
     var onPick: (URL?) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
@@ -1512,3 +1552,4 @@ private struct DocumentFilePicker: UIViewControllerRepresentable {
         }
     }
 }
+

@@ -19,12 +19,22 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     var isCodeChange: Bool = false
     var commitSHA: String? = nil
     var actionsUrl: String? = nil
+    var attachedImageData: Data? = nil
+    var attachedFileName: String? = nil
     let timestamp: Date
 
-    init(role: ChatRole, content: String = "", isCodeChange: Bool = false) {
+    init(
+        role: ChatRole,
+        content: String = "",
+        isCodeChange: Bool = false,
+        attachedImageData: Data? = nil,
+        attachedFileName: String? = nil
+    ) {
         self.role = role
         self.content = content
         self.isCodeChange = isCodeChange
+        self.attachedImageData = attachedImageData
+        self.attachedFileName = attachedFileName
         self.timestamp = Date()
     }
 }
@@ -64,11 +74,13 @@ final class GeminiService: ObservableObject {
         UserDefaults.standard.string(forKey: "gemini_api_key") ?? ""
     }
 
-    /// Streams a Gemini response chunk by chunk
+    /// Streams a Gemini response chunk by chunk (supports multimodal text + image)
     func streamResponse(
         prompt: String,
         systemContext: String,
-        history: [ChatMessage]
+        history: [ChatMessage],
+        imageData: Data? = nil,
+        imageMimeType: String = "image/jpeg"
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -84,10 +96,29 @@ final class GeminiService: ObservableObject {
                 }
 
                 var contents: [[String: Any]] = history.filter { !$0.isStreaming && !$0.content.isEmpty }.map { msg in
-                    ["role": msg.role == .user ? "user" : "model",
-                     "parts": [["text": msg.content]]]
+                    var parts: [[String: Any]] = [["text": msg.content]]
+                    if let imgData = msg.attachedImageData {
+                        let mime = (msg.attachedFileName?.hasSuffix(".pdf") == true) ? "application/pdf" : "image/jpeg"
+                        parts.append([
+                            "inline_data": [
+                                "mime_type": mime,
+                                "data": imgData.base64EncodedString()
+                            ]
+                        ])
+                    }
+                    return ["role": msg.role == .user ? "user" : "model", "parts": parts]
                 }
-                contents.append(["role": "user", "parts": [["text": prompt]]])
+
+                var currentParts: [[String: Any]] = [["text": prompt.isEmpty ? "Bitte analysiere dieses Dokument/Bild." : prompt]]
+                if let imgData = imageData {
+                    currentParts.append([
+                        "inline_data": [
+                            "mime_type": imageMimeType,
+                            "data": imgData.base64EncodedString()
+                        ]
+                    ])
+                }
+                contents.append(["role": "user", "parts": currentParts])
 
                 let body: [String: Any] = [
                     "contents": contents,

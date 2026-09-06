@@ -73,9 +73,18 @@ else
     <string>Kamera zum Scannen von Briefen und Belegen</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Fotos zum Dokumenten-Archiv hinzufügen</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen</string>
 </dict>
 </plist>
 EOF
+fi
+
+if [ -f "dist/Payload/DigitalesBuero.app/Info.plist" ]; then
+    /usr/libexec/PlistBuddy -c "Add :NSFaceIDUsageDescription string 'Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen'" dist/Payload/DigitalesBuero.app/Info.plist 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :NSFaceIDUsageDescription 'Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen'" dist/Payload/DigitalesBuero.app/Info.plist 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Kamera zum Scannen von Briefen und Belegen'" dist/Payload/DigitalesBuero.app/Info.plist 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Fotos zum Dokumenten-Archiv hinzufügen'" dist/Payload/DigitalesBuero.app/Info.plist 2>/dev/null || true
 fi
 
 if [ -f "icon.png" ]; then

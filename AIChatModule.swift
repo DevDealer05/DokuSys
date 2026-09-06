@@ -2,6 +2,7 @@
 // Digitales Büro — KI-Chat (Gemini 2.0 Flash, In-App)
 
 import SwiftUI
+import PDFKit
 
 // MARK: - Chat Mode
 
@@ -15,6 +16,13 @@ enum ChatMode: Int, CaseIterable {
         case .codeEditor: return "Code ändern"
         }
     }
+}
+
+enum AttachmentSheetType: Identifiable {
+    case camera
+    case photoLibrary
+    case document
+    var id: Self { self }
 }
 
 // MARK: - AIChatView
@@ -31,6 +39,13 @@ struct AIChatView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("gemini_api_key") private var geminiApiKey: String = ""
     @State private var showApiKeySheet: Bool = false
+
+    // Multimodal attachments
+    @State private var attachedImageData: Data? = nil
+    @State private var attachedImageThumbnail: UIImage? = nil
+    @State private var attachedFileName: String? = nil
+    @State private var activeAttachmentSheet: AttachmentSheetType? = nil
+    @State private var showAttachmentActionSheet: Bool = false
 
     private let storageKey = "chat_history_v1"
 
@@ -107,12 +122,93 @@ struct AIChatView: View {
 
             Divider()
 
+            // Attachment preview card
+            if let thumb = attachedImageThumbnail {
+                HStack(spacing: 10) {
+                    Image(uiImage: thumb)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(attachedFileName ?? "Bild-Anhang")
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                        Text("Bereit zum Senden an Gemini")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        attachedImageData = nil
+                        attachedImageThumbnail = nil
+                        attachedFileName = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.title3)
+                    }
+                }
+                .padding(8)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+            } else if let filename = attachedFileName {
+                HStack(spacing: 10) {
+                    Image(systemName: "doc.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color(red: 0.43, green: 0.36, blue: 0.91))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(filename)
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                        Text("Dokument angehängt")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        attachedImageData = nil
+                        attachedFileName = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.title3)
+                    }
+                }
+                .padding(8)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+            }
+
             // Input bar
-            HStack(alignment: .bottom, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 10) {
+                // Paperclip Attachment Button
+                Button {
+                    showAttachmentActionSheet = true
+                } label: {
+                    Image(systemName: attachedImageData != nil ? "paperclip.circle.fill" : "paperclip")
+                        .font(.system(size: 22))
+                        .foregroundStyle(
+                            attachedImageData != nil
+                                ? Color(red: 0.43, green: 0.36, blue: 0.91)
+                                : Color.secondary
+                        )
+                        .padding(.vertical, 8)
+                }
+                .disabled(gemini.isStreaming)
+
                 TextField(
                     selectedMode == ChatMode.codeEditor.rawValue
                         ? "Code-Änderung beschreiben..."
-                        : "Nachricht eingeben...",
+                        : (attachedImageData != nil ? "Frage zum Dokument/Bild..." : "Nachricht eingeben..."),
                     text: $inputText,
                     axis: .vertical
                 )
@@ -130,7 +226,10 @@ struct AIChatView: View {
                                 ? Color.green : Color(red: 0.43, green: 0.36, blue: 0.91)
                         )
                 }
-                .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty && !gemini.isStreaming)
+                .disabled(
+                    (inputText.trimmingCharacters(in: .whitespaces).isEmpty && attachedImageData == nil)
+                    && !gemini.isStreaming
+                )
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
@@ -144,6 +243,43 @@ struct AIChatView: View {
                 } label: {
                     Image(systemName: "trash")
                         .foregroundColor(.secondary)
+                }
+            }
+        }
+        .confirmationDialog("Anhang hinzufügen", isPresented: $showAttachmentActionSheet, titleVisibility: .visible) {
+            Button("Foto aufnehmen (Kamera)") {
+                activeAttachmentSheet = .camera
+            }
+            Button("Aus Fotomediathek wählen") {
+                activeAttachmentSheet = .photoLibrary
+            }
+            Button("Dokument / Datei wählen (PDF)") {
+                activeAttachmentSheet = .document
+            }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .sheet(item: $activeAttachmentSheet) { sheetType in
+            switch sheetType {
+            case .camera:
+                DocumentImagePicker(sourceType: .camera) { image in
+                    activeAttachmentSheet = nil
+                    if let image = image {
+                        handlePickedImage(image)
+                    }
+                }
+            case .photoLibrary:
+                DocumentImagePicker(sourceType: .photoLibrary) { image in
+                    activeAttachmentSheet = nil
+                    if let image = image {
+                        handlePickedImage(image)
+                    }
+                }
+            case .document:
+                DocumentFilePicker { url in
+                    activeAttachmentSheet = nil
+                    if let url = url {
+                        handlePickedDocument(url)
+                    }
                 }
             }
         }
@@ -203,8 +339,8 @@ struct AIChatView: View {
             Text("KI-Assistent")
                 .font(.title3.bold())
             Text(devModeEnabled
-                 ? "Frage mich alles über die App oder nutze den Code-Modus um Änderungen direkt einzuspielen."
-                 : "Frage mich alles über deine Schulden, Dokumente und den Haushalt.")
+                 ? "Frage mich alles über die App oder lade Dokumente/Fotos hoch zur automatischen Analyse."
+                 : "Frage mich alles über deine Schulden, Dokumente und den Haushalt. Du kannst auch Dokumente oder Rechnungen anhängen.")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .font(.subheadline)
@@ -212,25 +348,87 @@ struct AIChatView: View {
         .padding(40)
     }
 
+    // MARK: - Attachment Handling
+    private func handlePickedImage(_ image: UIImage) {
+        let maxDim: CGFloat = 1280
+        let s = image.size
+        var resized = image
+        if s.width > maxDim || s.height > maxDim {
+            let scale = min(maxDim / s.width, maxDim / s.height)
+            let newSize = CGSize(width: s.width * scale, height: s.height * scale)
+            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+            if let c = UIGraphicsGetImageFromCurrentImageContext() {
+                resized = c
+            }
+            UIGraphicsEndImageContext()
+        }
+        attachedImageThumbnail = resized
+        attachedImageData = resized.jpegData(compressionQuality: 0.8)
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd_HHmm"
+        attachedFileName = "Foto_\(df.string(from: Date())).jpg"
+    }
+
+    private func handlePickedDocument(_ url: URL) {
+        let isAccessing = url.startAccessingSecurityScopedResource()
+        defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+
+        attachedFileName = url.lastPathComponent
+
+        guard let data = try? Data(contentsOf: url) else { return }
+
+        if url.pathExtension.lowercased() == "pdf" {
+            if let pdfDoc = PDFDocument(data: data), let page = pdfDoc.page(at: 0) {
+                let rect = page.bounds(for: .mediaBox)
+                let renderer = UIGraphicsImageRenderer(size: rect.size)
+                let img = renderer.image { ctx in
+                    UIColor.white.set()
+                    ctx.fill(rect)
+                    ctx.cgContext.translateBy(x: 0, y: rect.height)
+                    ctx.cgContext.scaleBy(x: 1.0, y: -1.0)
+                    page.draw(with: .mediaBox, to: ctx.cgContext)
+                }
+                attachedImageThumbnail = img
+                attachedImageData = img.jpegData(compressionQuality: 0.8)
+            }
+        } else if let img = UIImage(data: data) {
+            handlePickedImage(img)
+        }
+    }
+
     // MARK: - Send message
     private func sendMessage() async {
         let text = inputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
+        let imgData = attachedImageData
+        let fname = attachedFileName
+
+        guard !text.isEmpty || imgData != nil else { return }
 
         inputText = ""
-        let userMsg = ChatMessage(role: .user, content: text)
+        attachedImageData = nil
+        attachedImageThumbnail = nil
+        attachedFileName = nil
+
+        let finalPrompt = text.isEmpty ? "Bitte analysiere dieses angehängte Dokument bzw. Bild und erkläre mir die wichtigsten Punkte." : text
+        let userMsg = ChatMessage(
+            role: .user,
+            content: finalPrompt,
+            attachedImageData: imgData,
+            attachedFileName: fname
+        )
         messages.append(userMsg)
         saveMessages()
 
         if selectedMode == ChatMode.codeEditor.rawValue {
-            await sendCodeChangeMessage(prompt: text)
+            await sendCodeChangeMessage(prompt: finalPrompt)
         } else {
-            await sendAssistantMessage(prompt: text)
+            await sendAssistantMessage(prompt: finalPrompt, imageData: imgData)
         }
     }
 
     // MARK: - Assistant streaming
-    private func sendAssistantMessage(prompt: String) async {
+    private func sendAssistantMessage(prompt: String, imageData: Data? = nil) async {
         var assistantMsg = ChatMessage(role: .assistant, isCodeChange: false)
         assistantMsg.isStreaming = true
         messages.append(assistantMsg)
@@ -242,10 +440,17 @@ struct AIChatView: View {
         eine iOS-App für Schulden- und Haushaltsmanagement (SwiftUI, iOS 17+). \
         Antworte immer auf Deutsch. Sei präzise und hilfreich. \
         Du kennst alle Funktionen der App: Schulden-Tracker, Dokumentenscanner, \
-        Putzplan, Hardware-Logbuch, Exportmodul und Abonnement-Verwaltung.
+        Putzplan, Hardware-Logbuch, Exportmodul und Abonnement-Verwaltung. \
+        Wenn der Nutzer ein Dokument oder Foto hochgeladen hat, analysiere den Inhalt präzise \
+        (Gläubiger, Forderungshöhe, Zahlungsfristen, Aktenzeichen, etc.) und gib sofort handlungsorientierte Empfehlungen.
         """
 
-        let stream = gemini.streamResponse(prompt: prompt, systemContext: context, history: Array(messages.dropLast()))
+        let stream = gemini.streamResponse(
+            prompt: prompt,
+            systemContext: context,
+            history: Array(messages.dropLast()),
+            imageData: imageData
+        )
         do {
             for try await chunk in stream {
                 messages[idx].content += chunk
@@ -332,19 +537,39 @@ struct MessageBubbleView: View {
 
     // User bubble: indigo gradient, right-aligned
     private var userBubble: some View {
-        Text(message.content)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                LinearGradient(
-                    colors: [Color(red: 0.43, green: 0.36, blue: 0.91), Color(red: 0.55, green: 0.22, blue: 0.88)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
-            .foregroundColor(.white)
-            .textSelection(.enabled)
+        VStack(alignment: .trailing, spacing: 8) {
+            if let imgData = message.attachedImageData, let uiImg = UIImage(data: imgData) {
+                Image(uiImage: uiImg)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else if let fileName = message.attachedFileName {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.fill")
+                    Text(fileName)
+                        .font(.caption.bold())
+                }
+                .padding(8)
+                .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            if !message.content.isEmpty {
+                Text(message.content)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            LinearGradient(
+                colors: [Color(red: 0.43, green: 0.36, blue: 0.91), Color(red: 0.55, green: 0.22, blue: 0.88)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .foregroundColor(.white)
     }
 
     // Assistant bubble: glass card, left-aligned
