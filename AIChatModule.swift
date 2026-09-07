@@ -47,9 +47,13 @@ struct AIChatView: View {
     @State private var activeAttachmentSheet: AttachmentSheetType? = nil
     @State private var showAttachmentActionSheet: Bool = false
 
+    var isEmbeddedInTabBar: Bool = false
+    @FocusState private var isInputFocused: Bool
+
     private let storageKey = "chat_history_v1"
 
-    init(initialPrompt: String? = nil) {
+    init(initialPrompt: String? = nil, isEmbeddedInTabBar: Bool = false) {
+        self.isEmbeddedInTabBar = isEmbeddedInTabBar
         if let initialPrompt = initialPrompt {
             _inputText = State(initialValue: initialPrompt)
         }
@@ -118,6 +122,11 @@ struct AIChatView: View {
                         }
                     }
                     .padding()
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isInputFocused = false
                 }
                 .onChange(of: messages.count) { _, _ in
                     if let last = messages.last {
@@ -218,9 +227,21 @@ struct AIChatView: View {
                     text: $inputText,
                     axis: .vertical
                 )
+                .focused($isInputFocused)
                 .lineLimit(1...5)
                 .padding(10)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+                if isInputFocused {
+                    Button {
+                        isInputFocused = false
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 8)
+                    }
+                }
 
                 Button {
                     Task { await sendMessage() }
@@ -238,11 +259,41 @@ struct AIChatView: View {
                 )
             }
             .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.top, 8)
+            .padding(.bottom, isEmbeddedInTabBar && !isInputFocused ? 84 : 10)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isInputFocused)
         }
         .navigationTitle("KI-Assistent")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if isInputFocused {
+                    Button("Fertig") {
+                        isInputFocused = false
+                    }
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Theme.primaryAccent)
+                }
+            }
+
+            ToolbarItemGroup(placement: .keyboard) {
+                Text(selectedMode == ChatMode.codeEditor.rawValue ? "Code-Modus" : "KI-Assistent")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    isInputFocused = false
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Fertig")
+                            .bold()
+                        Image(systemName: "keyboard.chevron.compact.down")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.primaryAccent)
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     showClearConfirm = true
@@ -666,7 +717,7 @@ struct AIChatSheet: View {
 
     var body: some View {
         NavigationStack {
-            AIChatView(initialPrompt: initialPrompt)
+            AIChatView(initialPrompt: initialPrompt, isEmbeddedInTabBar: false)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Schließen") {
