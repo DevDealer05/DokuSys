@@ -367,7 +367,7 @@ public struct DocumentAssistantCreatorView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let url = generatedPDFURL {
-                    ShareSheet(activityItems: [url])
+                    ShareSheet(items: [url])
                 }
             }
         }
