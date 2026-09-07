@@ -1,0 +1,493 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R] /Count 6 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 2102 >>
+stream
+0.43 0.36 0.91 rg 0 810 595.28 32 re f
+0.04 0.05 0.09 rg 0 0 595.28 810 re f
+0.07 0.09 0.16 rg 40 460 515 320 re f
+0.43 0.36 0.91 RG 2 w 40 460 515 320 re s
+1 1 1 rg
+BT /F2 26 Tf 65 730 Td (DIGITALES BUERO) Tj ET
+0.65 0.55 0.98 rg
+BT /F2 15 Tf 65 705 Td (Entwickler-Handbuch & Architektur-Referenz) Tj ET
+0.8 0.8 0.9 rg
+BT /F1 10 Tf 65 675 Td (Vollstaendige Dokumentation fuer weiterfuehrende Entwickler) Tj ET
+BT /F1 10 Tf 65 658 Td (Software-Architektur, Module, Datenmodelle & CI/CD) Tj ET
+0.1 0.13 0.22 rg 65 570 465 65 re f
+0.4 0.5 0.8 RG 1 w 65 570 465 65 re s
+0.9 0.9 1 rg
+BT /F2 9 Tf 80 618 Td (Version: 1.2.5 (Build 17)   |   Plattform: iOS 17.0+   |   Language: Swift 5.9 / 6.0) Tj ET
+BT /F1 9 Tf 80 600 Td (Repository: DevDealer05/DokuSys   |   Branch: main / gh-pages (SideStore)) Tj ET
+BT /F1 9 Tf 80 582 Td (Status: CI/CD Build Passed - SideStore OTA Live) Tj ET
+1 1 1 rg
+BT /F2 13 Tf 40 420 Td (Inhaltsverzeichnis) Tj ET
+0.15 0.18 0.28 rg 40 385 515 24 re f
+0.9 0.9 1 rg
+BT /F2 10 Tf 55 390 Td (1. Executive Summary & Design-System (Liquid Glass)) Tj ET
+BT /F1 10 Tf 490 390 Td (Seite 2) Tj ET
+0.15 0.18 0.28 rg 40 353 515 24 re f
+0.9 0.9 1 rg
+BT /F2 10 Tf 55 358 Td (2. System-Architektur & Komponenten-Diagramm) Tj ET
+BT /F1 10 Tf 490 358 Td (Seite 3) Tj ET
+0.15 0.18 0.28 rg 40 321 515 24 re f
+0.9 0.9 1 rg
+BT /F2 10 Tf 55 326 Td (3. Modul-Katalog: Alle Swift-Dateien im Detail) Tj ET
+BT /F1 10 Tf 490 326 Td (Seite 4) Tj ET
+0.15 0.18 0.28 rg 40 289 515 24 re f
+0.9 0.9 1 rg
+BT /F2 10 Tf 55 294 Td (4. Dokumenten-Ersteller (DIN 5008) & KI-Assistent) Tj ET
+BT /F1 10 Tf 490 294 Td (Seite 5) Tj ET
+0.15 0.18 0.28 rg 40 257 515 24 re f
+0.9 0.9 1 rg
+BT /F2 10 Tf 55 262 Td (5. CI/CD Build-Pipeline, SideStore & Lessons Learned) Tj ET
+BT /F1 10 Tf 490 262 Td (Seite 6) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (Digitales Büro ? Entwickler-Handbuch v1.2.5) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 1 von 6) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 3272 >>
+stream
+0.04 0.05 0.09 rg 0 0 595.28 841.89 re f
+1 1 1 rg
+BT /F2 16 Tf 50 770 Td (1. Executive Summary & Design-Philosophie) Tj ET
+0.08 0.11 0.2 rg 50 635 495 115 re f
+0.43 0.36 0.91 RG 1 w 50 635 495 115 re s
+0.65 0.55 0.98 rg
+BT /F2 11 Tf 65 725 Td (Projekt-Mission) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 705 Td 13 TL
+(Digitales Buero ist eine spezialisierte iOS-Anwendung fuer persoenliches Dokumenten- und) '
+(Schuldenmanagement. Die Kernidee: Ein intelligenter KI-Buerobegleiter, der Fristen) '
+(ueberwacht, Zahlungsaufforderungen via OCR scannt, unberechtigte Inkassogebuehren abwehrt) '
+(und formelle DIN-5008-Antwortschreiben mit digitaler Signatur in Sekunden erstellt.) '
+ET
+1 1 1 rg
+BT /F2 12 Tf 50 600 Td (Liquid Glass Design-System (Dark Mode)) Tj ET
+0.15 0.18 0.3 rg 50 565 495 20 re f
+1 1 1 rg
+BT /F2 9 Tf 60 571 Td (Token / Modifier) Tj 220 571 Td (Definition) Tj 350 571 Td (Verwendung) Tj ET
+0.08 0.1 0.18 rg 50 535 495 20 re f
+0.3 0.3 0.4 RG 0.5 w 50 535 495 20 re s
+0.9 0.9 1 rg
+BT /F4 8 Tf 60 540 Td (Theme.primaryAccent) Tj ET
+BT /F1 8 Tf 220 540 Td (#6E5BE8) Tj ET
+BT /F1 8 Tf 350 540 Td (Leuchtendes Indigo-Lila als Primaerfarbe) Tj ET
+0.08 0.1 0.18 rg 50 511 495 20 re f
+0.3 0.3 0.4 RG 0.5 w 50 511 495 20 re s
+0.9 0.9 1 rg
+BT /F4 8 Tf 60 516 Td (Theme.primaryGradient) Tj ET
+BT /F1 8 Tf 220 516 Td (#6E5BE8 -> #8E7CFF) Tj ET
+BT /F1 8 Tf 350 516 Td (Farbverlauf fuer primaere CTAs) Tj ET
+0.08 0.1 0.18 rg 50 487 495 20 re f
+0.3 0.3 0.4 RG 0.5 w 50 487 495 20 re s
+0.9 0.9 1 rg
+BT /F4 8 Tf 60 492 Td (Theme.appBackground) Tj ET
+BT /F1 8 Tf 220 492 Td (#0B0D17 -> #07080E) Tj ET
+BT /F1 8 Tf 350 492 Td (Tiefschwarzer Hintergrund-Gradient) Tj ET
+0.08 0.1 0.18 rg 50 463 495 20 re f
+0.3 0.3 0.4 RG 0.5 w 50 463 495 20 re s
+0.9 0.9 1 rg
+BT /F4 8 Tf 60 468 Td (Theme.glassEdgeGradient) Tj ET
+BT /F1 8 Tf 220 468 Td (White 0.25 -> 0.05) Tj ET
+BT /F1 8 Tf 350 468 Td (Duenne Lichtkante fuer Glass-Karten) Tj ET
+0.08 0.1 0.18 rg 50 439 495 20 re f
+0.3 0.3 0.4 RG 0.5 w 50 439 495 20 re s
+0.9 0.9 1 rg
+BT /F4 8 Tf 60 444 Td (.liquidGlassCard()) Tj ET
+BT /F1 8 Tf 220 444 Td (ViewModifier) Tj ET
+BT /F1 8 Tf 350 444 Td (Transluzente Karte mit Blur & Schatten) Tj ET
+1 1 1 rg
+BT /F2 12 Tf 50 405 Td (Kern-Frameworks & Schnittstellen) Tj ET
+0.08 0.11 0.2 rg 50 260 495 135 re f
+0.2 0.7 0.9 RG 1 w 50 260 495 135 re s
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 385 Td 13 TL
+(1. Apple VisionKit & Vision: Belegerkennung, Text-OCR und Metadaten-Extraktion.) '
+(2. Apple PencilKit: Digitale Unterschriftserfassung (PKCanvasView) im DIN 5008 Assistenten.) '
+(3. Apple PDFKit & UIKit: Praezise Vektor-PDF-Erstellung (UIGraphicsPDFRenderer).) '
+(4. Apple LocalAuthentication: Face ID / Touch ID App-Sperre mit PIN-Fallback.) '
+(5. Supabase Client (PostgreSQL 15, Auth, RLS, Storage Buckets, Deno Edge Functions).) '
+(6. Google Gemini 3.6 Flash / Pro via Server-Sent Events (SSE) Streaming.) '
+(7. Integrierter Diagnose-Webserver: RemoteLogServer auf Port 8080 fuer LAN-Debugging.) '
+ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (1. Executive Summary & Design) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 2 von 6) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 2601 >>
+stream
+0.04 0.05 0.09 rg 0 0 595.28 841.89 re f
+1 1 1 rg
+BT /F2 16 Tf 50 770 Td (2. System-Architektur & Datenfluss) Tj ET
+0.08 0.1 0.18 rg 50 490 495 260 re f
+0.43 0.36 0.91 RG 1.5 w 50 490 495 260 re s
+0.65 0.55 0.98 rg
+BT /F2 11 Tf 65 725 Td (SCHICHTEN-ARCHITEKTUR & DATENFLUSS) Tj ET
+0.13 0.16 0.28 rg 65 660 465 45 re f
+0.9 0.9 1 rg
+BT /F2 9 Tf 75 688 Td (Praesentations-Schicht (SwiftUI Views)) Tj ET
+BT /F4 8 Tf 75 672 Td (DocumentArchiveView, DocumentCreatorView, DebtDetailView, AIChatView) Tj ET
+0.13 0.16 0.28 rg 65 595 465 50 re f
+0.9 0.9 1 rg
+BT /F2 9 Tf 75 628 Td (Service- & Logik-Schicht (@MainActor ObservableObjects)) Tj ET
+BT /F4 8 Tf 75 612 Td (DocumentArchiveService, DebtEngineService, GeminiService, RemoteLogServer) Tj ET
+0.13 0.16 0.28 rg 65 510 465 70 re f
+0.9 0.9 1 rg
+BT /F2 9 Tf 75 560 Td (Persistenz- & Cloud-Schicht) Tj ET
+BT /F1 8 Tf 75 544 Td (Lokal: FileManager (/dms_files/<UUID>.pdf) + UserDefaults JSON Caches) Tj ET
+BT /F1 8 Tf 75 528 Td (Cloud: Supabase PostgreSQL (debts, documents) + Gemini 3.6 Flash LLM) Tj ET
+1 1 1 rg
+BT /F2 12 Tf 50 450 Td (Offline-First Paradigma & Synchronisation) Tj ET
+0.08 0.11 0.2 rg 50 280 495 150 re f
+0.2 0.8 0.4 RG 1 w 50 280 495 150 re s
+0.34 0.83 0.6 rg
+BT /F2 10 Tf 65 408 Td (Optimistische UI-Updates) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 388 Td 13 TL
+(1. Alle Schreiboperationen (Dokumente, Raten, Schuldenstatus) werden sofort lokal) '
+(   gespeichert und unmittelbar in den @Published Collections der Services reflektiert.) '
+(2. Die App funktioniert 100% autark ohne Internetverbindung.) '
+(3. PDF-Dateien werden direkt im App-Sandbox-Ordner dms_files/<UUID>.pdf persistiert.) '
+(4. Bei aktiver Netzwerkverbindung synchronisiert SupabaseConfig im Hintergrund mit der Cloud.) '
+(5. Fehlerhafte Remote-Requests blockieren niemals die UI oder das lokale Speichern.) '
+ET
+1 1 1 rg
+BT /F2 12 Tf 50 245 Td (Sicherheit & Face ID Schutz) Tj ET
+0.08 0.11 0.2 rg 50 90 495 135 re f
+0.8 0.4 0.2 RG 1 w 50 90 495 135 re s
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 200 Td 13 TL
+(- Biometrie-Sperre: FaceIDGuard sperrt das UI sofort bei Eintritt in den Hintergrund.) '
+(- Datenschutz: Keine sensiblen Schuldnerdaten im Plaintext in ungeschuetzten Logs.) '
+(- Zero-Hardcoded-Secrets: Alle Tokens & API-Keys ueber UserDefaults oder Env-Vars.) '
+ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (2. System-Architektur & Sicherheit) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 3 von 6) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 4820 >>
+stream
+0.04 0.05 0.09 rg 0 0 595.28 841.89 re f
+1 1 1 rg
+BT /F2 16 Tf 50 770 Td (3. Modul-Katalog: Alle Swift-Dateien) Tj ET
+0.08 0.1 0.18 rg 50 734 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 734 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 742 Td (DigitalesBueroApp.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 742 Td (Einstiegspunkt (@main), FloatingTabBarView, Face ID Guard) Tj ET
+0.08 0.1 0.18 rg 50 706 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 706 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 714 Td (DocumentArchiveModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 714 Td (DMS mit Volltextsuche, Fristen-Radar, Quick-Chips & AppDocument) Tj ET
+0.08 0.1 0.18 rg 50 678 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 678 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 686 Td (DocumentCreatorModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 686 Td (DIN 5008 4-Schritte-Assistent, 7 Vorlagen, Signatur & PDF-Ablage) Tj ET
+0.08 0.1 0.18 rg 50 650 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 650 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 658 Td (DebtEngineService.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 658 Td (Schulden-Engine, Glaeubiger, Aktenzeichen, Verjaehrung (Paragraph 195 BGB)) Tj ET
+0.08 0.1 0.18 rg 50 622 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 622 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 630 Td (DebtDetailView.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 630 Td (Detailansicht fuer Schulden mit Timeline, Zinsen & Statusverwaltung) Tj ET
+0.08 0.1 0.18 rg 50 594 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 594 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 602 Td (ScannerModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 602 Td (VisionKit Kamera-Scanner, Live-OCR, Triage & Belegextraktion) Tj ET
+0.08 0.1 0.18 rg 50 566 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 566 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 574 Td (ExportModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 574 Td (Dossier- & Ratenzahlungs-PDF-Export mit Unterschrift & ShareSheet) Tj ET
+0.08 0.1 0.18 rg 50 538 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 538 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 546 Td (HardwareLogModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 546 Td (Wartungsbuch fuer E-Scooter, Haushaltsgeraete mit Kosten-Tracking) Tj ET
+0.08 0.1 0.18 rg 50 510 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 510 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 518 Td (RealtimeHouseholdService.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 518 Td (Haushalts-Ausgaben, Mitglieder-Verwaltung & Budget-Sharing) Tj ET
+0.08 0.1 0.18 rg 50 482 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 482 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 490 Td (AIChatModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 490 Td (KI-Chat-Interface mit App-Assistent und Code-Aenderungs-Modus) Tj ET
+0.08 0.1 0.18 rg 50 454 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 454 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 462 Td (GeminiService.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 462 Td (Gemini 3.6 SSE-Streaming, Modell-Fallback & Code-Agent Integration) Tj ET
+0.08 0.1 0.18 rg 50 426 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 426 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 434 Td (DevModeModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 434 Td (Entwickler-Panel, Build-Info, SideStore-URL, Testdaten-Generator) Tj ET
+0.08 0.1 0.18 rg 50 398 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 398 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 406 Td (RemoteLogServer.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 406 Td (Integrierter HTTP-Server (Port 8080) zur Live-Log-Inspektion im WLAN) Tj ET
+0.08 0.1 0.18 rg 50 370 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 370 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 378 Td (AppLogger.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 378 Td (Zentraler Thread-sicherer Ringspeicher fuer Log-Nachrichten) Tj ET
+0.08 0.1 0.18 rg 50 342 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 342 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 350 Td (LiquidGlass.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 350 Td (Design-System, Farben, Farbverlaeufe, .liquidGlassCard() Modifier) Tj ET
+0.08 0.1 0.18 rg 50 314 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 314 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 322 Td (UserSessionManager.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 322 Td (Lokales Profil (Name, Anschrift, Budget) fuer Absenderzeilen) Tj ET
+0.08 0.1 0.18 rg 50 286 495 24 re f
+0.25 0.28 0.38 RG 0.5 w 50 286 495 24 re s
+0.65 0.75 1 rg
+BT /F2 8.5 Tf 60 294 Td (CommercialModule.swift) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 8 Tf 225 294 Td (Lizenz-Verwaltung & In-App-Freischaltungen) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (3. Modul-Katalog) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 4 von 6) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 12 0 R >>
+endobj
+12 0 obj
+<< /Length 2584 >>
+stream
+0.04 0.05 0.09 rg 0 0 595.28 841.89 re f
+1 1 1 rg
+BT /F2 16 Tf 50 770 Td (4. Dokumenten-Ersteller & KI-Assistent) Tj ET
+0.08 0.11 0.2 rg 50 560 495 190 re f
+0.43 0.36 0.91 RG 1 w 50 560 495 190 re s
+0.65 0.55 0.98 rg
+BT /F2 11 Tf 65 725 Td (DER 4-SCHRITTE WIZARD (DocumentAssistantCreatorView)) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 700 Td 13 TL
+(Schritt 1: Zweck / Vorlagenauswahl) '
+(  - Widerspruch Inkasso (Paragraph 4 Abs. 5 RDGEG, Paragraph 174 BGB Vollmachtsruege)) '
+(  - Kuendigung Vertrag/Abo, Ratenzahlungsangebot, Fristverlaengerung) '
+(  - DSGVO-Auskunft (Art. 15), Einrede der Verjaehrung (Paragraph 214 BGB), Freier KI-Brief) '
+() '
+(Schritt 2: Daten & Adressen - 100% editierbare Felder, Vorbefuellung aus UserProfile) '
+(Schritt 3: Text-Editor & KI-Feinschliff mit Tonalitaet (Rechtssicher/Kooperativ/Praegnant)) '
+(Schritt 4: DIN 5008 Briefvorschau, PencilKit Unterschrift & automatische DMS-Ablage) '
+ET
+1 1 1 rg
+BT /F2 12 Tf 50 520 Td (Autonomer Code-Mutation Workflow (KI-Agent)) Tj ET
+0.08 0.11 0.2 rg 50 320 495 175 re f
+0.2 0.7 0.9 RG 1 w 50 320 495 175 re s
+0.38 0.75 0.98 rg
+BT /F2 10 Tf 65 470 Td (Vom In-App Chat direkt zum Git-Commit) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 450 Td 13 TL
+(1. Nutzer waehlt im KI-Chat den Modus 'Code aendern'.) '
+(2. GeminiService sendet Prompt an Gemini 3.6 Flash mit vollem Architektur-Briefing.) '
+(3. KI generiert Antwort mit CODE_CHANGES_JSON:[{file: '...', content: '...'}] Tag.) '
+(4. GeminiService sendet Aenderungen an Supabase Edge Function ai-agent.) '
+(5. Edge Function committed via GitHub API auf den main Branch.) '
+(6. GitHub Actions startet automatisch Build & aktualisiert die SideStore-IPA!) '
+ET
+1 1 1 rg
+BT /F2 12 Tf 50 280 Td (Diagnose: Web-Logserver auf Port 8080) Tj ET
+0.08 0.11 0.2 rg 50 90 495 165 re f
+0.8 0.4 0.2 RG 1 w 50 90 495 165 re s
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 230 Td 13 TL
+(Zur Fehlersuche auf physischen Geraeten startet RemoteLogServer einen HTTP-Server.) '
+(Aufruf im Browser desselben Netzwerks: http://<IP-des-iPhones>:8080) '
+() '
+(Features der Diagnose-Oberflaeche:) '
+(- Farbkodierte Live-Logs (INFO, WARN, ERROR) aus dem Ringspeicher) '
+(- System-Informationen (Akkustand, Speicher, iOS-Version, Build-Nummer)) '
+(- Filter nach Modul (z. B. 'KI-Chat', 'DMS', 'Scanner')) '
+ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (4. Doku-Ersteller & KI-Agent) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 5 von 6) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 15 0 R /F2 16 0 R /F3 17 0 R /F4 18 0 R >> >> /Contents 14 0 R >>
+endobj
+14 0 obj
+<< /Length 2539 >>
+stream
+0.04 0.05 0.09 rg 0 0 595.28 841.89 re f
+1 1 1 rg
+BT /F2 16 Tf 50 770 Td (5. CI/CD Build-Pipeline & Lessons Learned) Tj ET
+0.08 0.11 0.2 rg 50 560 495 190 re f
+0.2 0.8 0.4 RG 1 w 50 560 495 190 re s
+0.34 0.83 0.6 rg
+BT /F2 11 Tf 65 725 Td (GITHUB ACTIONS PIPELINE (.github/workflows/build_ipa.yml)) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 700 Td 13 TL
+(1. Checkout & Select Xcode 16 auf macos-14 Runner) '
+(2. Versionsauslese aus Package.swift (displayVersion: 1.2.5, bundleVersion: 17)) '
+(3. Icon-Generierung via scripts/generate_icons.sh) '
+(4. xcodebuild mit AD_HOC_CODE_SIGNING_ALLOWED=YES (Unsigned Bundle)) '
+(5. Packaging via scripts/package_ipa.sh -> DigitalesBuero.ipa) '
+(6. Generierung des SideStore Manifests -> apps.json) '
+(7. Automatisches Deployment auf gh-pages Branch via peaceiris/actions-gh-pages) '
+ET
+1 1 1 rg
+BT /F2 12 Tf 50 520 Td (Wichtige Compiler-Regeln & Lessons Learned) Tj ET
+0.08 0.11 0.2 rg 50 150 495 345 re f
+0.9 0.2 0.2 RG 1.5 w 50 150 495 345 re s
+0.95 0.4 0.4 rg
+BT /F2 10 Tf 65 470 Td (Kritische Compiler-Regeln fuer neue Entwickler:) Tj ET
+0.85 0.85 0.9 rg
+BT /F1 9 Tf 65 450 Td 13 TL
+(REGEL 1: ShapeStyle Ternaer-Typen in SwiftUI) '
+(  Niemals: isSelected ? Theme.primaryAccent : Theme.glassEdgeGradient schreiben.) '
+(  Color und LinearGradient sind unterschiedliche Typen!) '
+(  Richtig: isSelected ? AnyShapeStyle(Theme.primaryAccent) : AnyShapeStyle(Theme.glassEdgeGradient)) '
+() '
+(REGEL 2: CoreGraphics Dictionary Keys in UIKit) '
+(  UIGraphicsPDFRendererFormat.documentInfo erwartet [String: Any].) '
+(  kCGPDFContext-Keys sind CFString. Immer: kCGPDFContextCreator as String verwenden.) '
+() '
+(REGEL 3: AppDocument lokale Dateipfade) '
+(  Immer relativen localFileName ('<UUID>.pdf') speichern, absolute Pfade zur Laufzeit) '
+(  ueber FileManager.default.urls(for: .documentDirectory, ...) aufloesen!) '
+() '
+(REGEL 4: Keine Secrets im Quellcode) '
+(  API-Keys gehoeren in UserDefaults ('gemini_api_key') oder GitHub Repository Secrets.) '
+ET
+0.1 0.15 0.3 rg 50 70 495 65 re f
+0.43 0.36 0.91 RG 1 w 50 70 495 65 re s
+1 1 1 rg
+BT /F2 9 Tf 65 115 Td (SideStore Repository URL fuer das iPhone:) Tj ET
+0.38 0.75 0.98 rg
+BT /F4 9 Tf 65 95 Td (https://DevDealer05.github.io/DokuSys/apps.json) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 805 m 545 805 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 812 Td (5. CI/CD & Lessons Learned) Tj ET
+0.7 0.7 0.8 RG 0.5 w
+50 45 m 545 45 l S
+0.4 0.4 0.5 rg
+BT /F1 8 Tf 50 33 Td (Vertraulich - Nur fuer Entwickler - DevDealer05/DokuSys) Tj ET
+BT /F2 8 Tf 480 33 Td (Seite 6 von 6) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+16 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+17 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>
+endobj
+18 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 19
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000147 00000 n 
+0000000313 00000 n 
+0000002467 00000 n 
+0000002633 00000 n 
+0000005957 00000 n 
+0000006123 00000 n 
+0000008776 00000 n 
+0000008943 00000 n 
+0000013816 00000 n 
+0000013984 00000 n 
+0000016621 00000 n 
+0000016789 00000 n 
+0000019381 00000 n 
+0000019452 00000 n 
+0000019528 00000 n 
+0000019607 00000 n 
+trailer
+<< /Size 19 /Root 1 0 R >>
+startxref
+19676
+%%EOF

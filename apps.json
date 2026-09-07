@@ -7,13 +7,13 @@
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
     "version": "1.2.5",
-    "versionDate": "2026-09-07T22:37:26Z",
-    "versionDescription": "v1.2.5 (Build 17, 4e0b5cc): fix(creator): Wrap strokeBorder style in AnyShapeStyle to fix ternary type mismatch",
+    "versionDate": "2026-09-07T22:46:41Z",
+    "versionDescription": "v1.2.5 (Build 17, a7ab137): docs: Add comprehensive Developer Handbook (HTML and 6-page PDF)",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 3051144,
+    "size": 3051145,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -22,9 +22,9 @@
   }],
   "news": [{
     "title": "Digitales Buero v1.2.5 (Build 17)",
-    "identifier": "release-17-4e0b5cc",
-    "caption": "fix(creator): Wrap strokeBorder style in AnyShapeStyle to fix ternary type mismatch",
-    "date": "2026-09-07T22:37:26Z",
+    "identifier": "release-17-a7ab137",
+    "caption": "docs: Add comprehensive Developer Handbook (HTML and 6-page PDF)",
+    "date": "2026-09-07T22:46:41Z",
     "tintColor": "6E5BE8"
   }]
 }
