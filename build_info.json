@@ -1,12 +1,12 @@
 {
   "appName": "Digitales Buero",
   "bundleIdentifier": "de.kim.DigitalesBuero",
-  "version": "1.2.2",
-  "build": "14",
-  "commit": "adb2ea4",
-  "buildDate": "2026-09-06T23:04:05Z",
-  "ipaSize": 2835909,
-  "changeLog": "fix(build): resolve authService in scope, DocumentAutoExtractionEngine title generator, and MainActor isolation in ScannerModule",
+  "version": "1.2.3",
+  "build": "15",
+  "commit": "2b8dea8",
+  "buildDate": "2026-09-07T12:27:15Z",
+  "ipaSize": 2848727,
+  "changeLog": "feat(agent): native direct GitHub code change agent with Gemini 3.6 & Git database API, bump v1.2.3 (b15)",
   "repo": "DevDealer05/DokuSys",
   "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
   "sideStoreRepo": "https://DevDealer05.github.io/DokuSys/apps.json"

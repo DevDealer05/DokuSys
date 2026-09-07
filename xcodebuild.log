@@ -39,15 +39,15 @@ ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/X
 
 ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
 
-Build description signature: 2486be9dc955a6c3f7da88488db86a02
-Build description path: /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/XCBuildData/2486be9dc955a6c3f7da88488db86a02.xcbuilddata
-CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex
-    cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
-    builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex
-
+Build description signature: 6add5449cfe7fa55b7ad723b0b3a8b65
+Build description path: /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/XCBuildData/6add5449cfe7fa55b7ad723b0b3a8b65.xcbuilddata
 CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products
     cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
     builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products
+
+CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex
+    cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
+    builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex
 
 ClangStatCache /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk /Users/runner/work/DokuSys/DokuSys/build/DerivedData/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache
     cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
@@ -61,17 +61,13 @@ CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/
     cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
     builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
 
-CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/PackageFrameworks
-    cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
-    builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/PackageFrameworks
-
 MkDir /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/DigitalesBuero_AppModule.bundle (in target 'DigitalesBuero_AppModule' from project 'DigitalesBuero')
     cd /Users/runner/work/DokuSys/DokuSys
     /bin/mkdir -p /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/DigitalesBuero_AppModule.bundle
 
-WriteAuxiliaryFile /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero_AppModule.build/empty-DigitalesBuero_AppModule.plist (in target 'DigitalesBuero_AppModule' from project 'DigitalesBuero')
-    cd /Users/runner/work/DokuSys/DokuSys
-    write-file /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero_AppModule.build/empty-DigitalesBuero_AppModule.plist
+CreateBuildDirectory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/PackageFrameworks
+    cd /Users/runner/work/DokuSys/DokuSys/.swiftpm/xcode
+    builtin-create-build-directory /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/PackageFrameworks
 
 CompileAssetCatalog /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Products/Release-iphoneos/DigitalesBuero_AppModule.bundle /Users/runner/work/DokuSys/DokuSys/Assets.xcassets (in target 'DigitalesBuero_AppModule' from project 'DigitalesBuero')
     cd /Users/runner/work/DokuSys/DokuSys
@@ -79,6 +75,10 @@ CompileAssetCatalog /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/P
 /* com.apple.actool.compilation-results */
 /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero_AppModule.build/assetcatalog_generated_info.plist
 
+
+WriteAuxiliaryFile /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero_AppModule.build/empty-DigitalesBuero_AppModule.plist (in target 'DigitalesBuero_AppModule' from project 'DigitalesBuero')
+    cd /Users/runner/work/DokuSys/DokuSys
+    write-file /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero_AppModule.build/empty-DigitalesBuero_AppModule.plist
 
 WriteAuxiliaryFile /Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/DigitalesBuero_const_extract_protocols.json (in target 'DigitalesBuero' from project 'DigitalesBuero')
     cd /Users/runner/work/DokuSys/DokuSys
