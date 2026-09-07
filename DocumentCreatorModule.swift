@@ -1121,22 +1121,33 @@ public struct DocumentAssistantCreatorView: View {
     private func finalizeAndSave() {
         let pdfData = buildPDFData()
         let parsedAmount: Decimal? = Decimal(string: draft.amount.replacingOccurrences(of: ",", with: "."))
+        let docId = UUID()
+        let localName = "\(docId.uuidString).pdf"
+
+        // PDF lokal im Dokumentenverzeichnis speichern
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let localURL = dir.appendingPathComponent(localName)
+        try? pdfData.write(to: localURL)
 
         // Speichert das Schreiben als neues Dokument im Archiv
         let newDoc = AppDocument(
+            id: docId,
+            userId: service.userId,
             title: draft.subject.isEmpty ? draft.templateType.rawValue : draft.subject,
             category: draft.templateType.defaultCategory,
-            fileType: .pdf,
-            status: .inProgress,
+            documentDate: draft.date,
+            dueDate: Calendar.current.date(byAdding: .day, value: 14, to: Date()),
             sender: draft.recipientName.isEmpty ? "Erstelltes Schreiben" : draft.recipientName,
             fileNumber: draft.referenceNumber.isEmpty ? nil : draft.referenceNumber,
             amount: parsedAmount,
-            documentDate: draft.date,
-            dueDate: Calendar.current.date(byAdding: .day, value: 14, to: Date()),
-            tags: ["Erstellt", draft.templateType.rawValue.components(separatedBy: " ").first ?? "Schreiben"],
+            storagePath: nil,
+            localFileName: localName,
+            fileType: .pdf,
             ocrText: draft.bodyText,
-            notes: "Vom Büro-Assistenten erstelltes DIN 5008 Schreiben an \(draft.recipientName).",
-            pdfData: pdfData
+            tags: ["Erstellt", draft.templateType.rawValue.components(separatedBy: " ").first ?? "Schreiben"],
+            status: .inProgress,
+            notes: "Vom Büro-Assistenten erstelltes DIN 5008 Schreiben an \(draft.recipientName)."
         )
 
         service.addDocument(newDoc)
