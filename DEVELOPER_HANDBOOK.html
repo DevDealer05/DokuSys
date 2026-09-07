@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitales Büro – Entwickler-Handbuch & Architektur-Dokumentation</title>
+    <style>
+        :root {
+            --bg-base: #0a0c16;
+            --bg-surface: #121528;
+            --bg-card: rgba(255, 255, 255, 0.04);
+            --bg-card-hover: rgba(255, 255, 255, 0.07);
+            --border-glass: rgba(255, 255, 255, 0.12);
+            --border-glass-glow: rgba(110, 91, 232, 0.4);
+            --accent-primary: #6E5BE8;
+            --accent-secondary: #00C6FF;
+            --accent-success: #10B981;
+            --accent-warning: #F59E0B;
+            --accent-danger: #EF4444;
+            --text-primary: #F3F4F6;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            --font-mono: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.65;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(110, 91, 232, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 198, 255, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        header.top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            background: rgba(10, 12, 22, 0.85);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(110, 91, 232, 0.4);
+        }
+
+        .brand-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .badge-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .badge-purple {
+            background: rgba(110, 91, 232, 0.2);
+            color: #A78BFA;
+            border-color: rgba(110, 91, 232, 0.4);
+        }
+
+        .badge-green {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34D399;
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+
+        .badge-blue {
+            background: rgba(0, 198, 255, 0.15);
+            color: #38BDF8;
+            border-color: rgba(0, 198, 255, 0.3);
+        }
+
+        .layout {
+            display: flex;
+            max-width: 1540px;
+            margin: 0 auto;
+            padding: 30px 24px;
+            gap: 36px;
+        }
+
+        aside.sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 90px;
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            padding-right: 12px;
+        }
+
+        aside.sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        aside.sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        .nav-section {
+            margin-bottom: 22px;
+        }
+
+        .nav-heading {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-left: 8px;
+        }
+
+        .nav-list {
+            list-style: none;
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
+        }
+
+        .nav-item a:hover {
+            background: var(--bg-card-hover);
+            color: #fff;
+            transform: translateX(3px);
+        }
+
+        .nav-item.active a {
+            background: rgba(110, 91, 232, 0.25);
+            color: #fff;
+            font-weight: 600;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        main.content {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        section {
+            margin-bottom: 56px;
+            scroll-margin-top: 100px;
+        }
+
+        h1, h2, h3, h4 {
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #FFFFFF 30%, #A78BFA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            margin: 24px 0 12px 0;
+            color: #E2E8F0;
+        }
+
+        h4 {
+            font-size: 1rem;
+            margin: 16px 0 8px 0;
+            color: #CBD5E1;
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        ul, ol {
+            margin-bottom: 18px;
+            padding-left: 24px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        strong {
+            color: #fff;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-glass);
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-glass-glow);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .callout {
+            border-left: 4px solid var(--accent-primary);
+            background: rgba(110, 91, 232, 0.1);
+            padding: 16px 20px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            margin-bottom: 22px;
+        }
+
+        .callout.info {
+            border-left-color: var(--accent-secondary);
+            background: rgba(0, 198, 255, 0.08);
+        }
+
+        .callout.warning {
+            border-left-color: var(--accent-warning);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .callout.success {
+            border-left-color: var(--accent-success);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .callout.danger {
+            border-left-color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .callout-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .callout.info .callout-title { color: #38BDF8; }
+        .callout.warning .callout-title { color: #FBBF24; }
+        .callout.success .callout-title { color: #34D399; }
+        .callout.danger .callout-title { color: #F87171; }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-bottom: 24px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            padding: 12px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        pre {
+            background: #0d111c;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.83rem;
+            color: #E2E8F0;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.08);
+            color: #E0E7FF;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+        }
+
+        .file-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: #A5B4FC;
+        }
+
+        .diagram-container {
+            background: #0b0e1b;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin: 24px 0;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+
+        footer.doc-footer {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border-glass);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 1024px) {
+            .layout {
+                flex-direction: column;
+            }
+            aside.sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-bar">
+        <div class="brand">
+            <div class="brand-logo">📁</div>
+            <div>
+                <div class="brand-title">Digitales Büro – Entwickler-Handbuch</div>
+                <div class="brand-subtitle">Vollständige technische Architektur- und Onboarding-Dokumentation</div>
+            </div>
+        </div>
+        <div class="badge-group">
+            <span class="badge badge-purple">v1.2.5 (Build 17)</span>
+            <span class="badge badge-blue">iOS 17.0+ / Swift 5.9</span>
+            <span class="badge badge-green">CI/CD: Passed ✅</span>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="nav-section">
+                <div class="nav-heading">1. Einstieg & Vision</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#executive-summary">Executive Summary</a></li>
+                    <li class="nav-item"><a href="#design-philosophy">Design-System: Liquid Glass</a></li>
+                    <li class="nav-item"><a href="#tech-stack">Technologie-Stack</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-heading">2. System-Architektur</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#system-architecture">Architektur-Diagramm</a></li>
+                    <li class="nav-item"><a href="#data-flow">Datenfluss & Offline-First</a></li>
+                    <li class="nav-item"><a href="#security-privacy">Sicherheit & Face ID</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-heading">3. Module im Detail</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#mod-app">DigitalesBueroApp (Entry)</a></li>
+                    <li class="nav-item"><a href="#mod-dms">DMS (DocumentArchiveModule)</a></li>
+                    <li class="nav-item"><a href="#mod-creator">Doku-Ersteller (CreatorModule)</a></li>
+                    <li class="nav-item"><a href="#mod-debts">Schulden-Engine & Timelines</a></li>
+                    <li class="nav-item"><a href="#mod-scanner">Vision OCR Scanner</a></li>
+                    <li class="nav-item"><a href="#mod-export">Dossier & PDF Export</a></li>
+                    <li class="nav-item"><a href="#mod-hardware">Wartungslogbuch (Hardware)</a></li>
+                    <li class="nav-item"><a href="#mod-chat">KI-Chat & Gemini Service</a></li>
+                    <li class="nav-item"><a href="#mod-diagnostics">Diagnostik (RemoteLogServer)</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-heading">4. Datenmodelle</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#models-dms">DMS Dokumentenmodelle</a></li>
+                    <li class="nav-item"><a href="#models-debts">Schulden & Fristen</a></li>
+                    <li class="nav-item"><a href="#models-creator">DIN 5008 Drafts & Vorlagen</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-heading">5. CI/CD & Sideloading</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#cicd-pipeline">GitHub Actions Pipeline</a></li>
+                    <li class="nav-item"><a href="#sidestore-deploy">SideStore & apps.json</a></li>
+                </ul>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-heading">6. Entwickler-Guide</div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#dev-setup">Lokales Setup & Xcode</a></li>
+                    <li class="nav-item"><a href="#pitfalls">Lessons Learned & Fallstricke</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="content">
+
+            <section id="executive-summary">
+                <h1>Digitales Büro – Entwickler-Handbuch</h1>
+                <p>
+                    Dieses Dokument dient als zentrale technische Referenz für Entwickler, die neu in das Projekt <strong>Digitales Büro</strong> (internes Repository: <code>DevDealer05/DokuSys</code>) einsteigen. Es dokumentiert sämtliche Architektur-Entscheidungen, Modul-Schnittstellen, Datenmodelle, die CI/CD-Pipeline und typische Fallstricke bei der Weiterentwicklung.
+                </p>
+
+                <div class="callout success">
+                    <div class="callout-title">✅ Aktueller Status: Release v1.2.5 (Build 17)</div>
+                    <div>
+                        Der Build kompiliert fehlerfrei in Xcode 16 / macOS-14 Runnern und wird vollautomatisiert bei jedem Commit auf <code>main</code> als unsigniertes IPA gebaut und via GitHub Pages für <strong>SideStore</strong> bereitgestellt.
+                    </div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <h3>🎯 Zielsetzung</h3>
+                        <p>Eine allumfassende, hochmoderne All-in-One iOS-App für das persönliche Finanz-, Dokumenten- und Haushaltsmanagement. Schwerpunkte sind Gläubiger- und Inkasso-Abwehr, Fristenüberwachung, Belegerfassung via OCR und DIN-5008-Briefgenerierung.</p>
+                    </div>
+                    <div class="card">
+                        <h3>📱 Plattform & OS</h3>
+                        <p><strong>iOS 17.0+ / iPadOS 17.0+</strong>. Entwickelt als Swift Package Manager Projekt (<code>.swiftpm</code>). Kompilierbar über Swift Playgrounds auf dem iPad sowie vollwertig in Xcode auf macOS.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🚀 Sideloading-First</h3>
+                        <p>Verteilung erfolgt kabellos über <strong>SideStore</strong>. Die App aktualisiert sich on-device über eine automatisierte <code>apps.json</code>-Quelle auf GitHub Pages ohne Entwickler-Account-Kosten.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="design-philosophy">
+                <h2>🎨 Design-System: Dark Liquid Glass</h2>
+                <p>
+                    Die gesamte UI folgt dem eigens entwickelten <strong>Dark Liquid Glass</strong> Design-System. Ziel ist ein tiefschwarzer, edler Look mit transluzenten Glasflächen, dezenten Farbverläufen und haptischen Animationen.
+                </p>
+
+                <div class="card">
+                    <h4>Design-Tokens (definiert in <code>LiquidGlass.swift</code>)</h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Token</th>
+                                    <th>Wert / Definition</th>
+                                    <th>Verwendung</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>Theme.primaryAccent</code></td>
+                                    <td><code>Color(hex: "6E5BE8")</code> (Leuchtendes Indigo-Lila)</td>
+                                    <td>Primäre Buttons, aktive Icons, Marken-Farbe</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Theme.primaryGradient</code></td>
+                                    <td>LinearGradient(#6E5BE8 &rarr; #8E7CFF)</td>
+                                    <td>Hervorgehobene Call-to-Actions, Speicher-Buttons</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Theme.appBackground</code></td>
+                                    <td>Tiefdunkler Farbverlauf (#0B0D17 &rarr; #07080E)</td>
+                                    <td>Globaler Hintergrund aller Screens</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Theme.glassEdgeGradient</code></td>
+                                    <td>LinearGradient(White 0.25 &rarr; White 0.05)</td>
+                                    <td>Dünne Lichtkante (Stroke) für Glas-Effekte</td>
+                                </tr>
+                                <tr>
+                                    <td><code>.liquidGlassCard()</code></td>
+                                    <td>ViewModifier mit Blur & Glass-Border</td>
+                                    <td>Standard-Kartenlayout für alle Listen & Module</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tech-stack">
+                <h2>🛠️ Technologie-Stack</h2>
+                <div class="card">
+                    <ul>
+                        <li><strong>UI-Framework:</strong> 100% SwiftUI (iOS 17 NavigationStack, ContentUnavailableView, ScrollViewReader).</li>
+                        <li><strong>Computer Vision & OCR:</strong> Apple <code>VisionKit</code> (<code>VNDocumentCameraViewController</code>) und <code>Vision</code> (<code>VNRecognizeTextRequest</code> mit deutscher Sprachoptimierung).</li>
+                        <li><strong>Digitale Signatur:</strong> Apple <code>PencilKit</code> (<code>PKCanvasView</code>, <code>PKDrawing</code>, Monoline Ink) für handschriftliche Unterschriften per Pencil oder Finger.</li>
+                        <li><strong>PDF-Generierung:</strong> Apple <code>PDFKit</code> und <code>UIKit</code> (<code>UIGraphicsPDFRenderer</code>) mit exakten DIN-5008-Maßen (595.2 &times; 841.8 pt @ 72 DPI).</li>
+                        <li><strong>Authentifizierung & Sicherheit:</strong> Apple <code>LocalAuthentication</code> (Face ID / Touch ID mit Fallback auf PIN) + Supabase Auth.</li>
+                        <li><strong>Cloud-Backend:</strong> Supabase PostgreSQL, Storage Buckets (<code>documents</code>) und Deno TypeScript Edge Functions (<code>ai-agent</code>).</li>
+                        <li><strong>KI-Engine:</strong> Google Gemini 3.6 Flash & Pro via Server-Sent Events (SSE) Streaming.</li>
+                        <li><strong>Diagnose & Server:</strong> Integrierter <code>RemoteLogServer</code> auf Basis von <code>NWListener</code> (Port 8080) zur Live-Log-Inspektion im lokalen WLAN.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="system-architecture">
+                <h2>🏛️ System-Architektur & Komponenten-Diagramm</h2>
+                <p>
+                    Die Architektur folgt einer strengen Schichten-Trennung nach dem MVVM-Prinzip, ergänzt durch reaktive Services und ein Offline-First Persistenzkonzept.
+                </p>
+
+                <div class="diagram-container">
+                    <svg width="840" height="460" viewBox="0 0 840 460" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="10" y="10" width="820" height="440" rx="16" fill="#101322" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+
+                        <rect x="30" y="30" width="780" height="80" rx="12" fill="rgba(110, 91, 232, 0.15)" stroke="#6E5BE8" stroke-width="1.5"/>
+                        <text x="45" y="55" fill="#A78BFA" font-family="sans-serif" font-weight="bold" font-size="14">PRÄSENTATIONSSCHICHT (SwiftUI Views)</text>
+                        <text x="45" y="85" fill="#E2E8F0" font-family="monospace" font-size="12">DocumentArchiveView • DocumentCreatorView • DebtDetailView • ScannerView • AIChatView • DevModeView</text>
+
+                        <rect x="30" y="140" width="780" height="110" rx="12" fill="rgba(0, 198, 255, 0.08)" stroke="#00C6FF" stroke-width="1.5"/>
+                        <text x="45" y="165" fill="#38BDF8" font-family="sans-serif" font-weight="bold" font-size="14">SERVICE- & LOGIK-SCHICHT (@MainActor ObservableObjects)</text>
+                        <g transform="translate(45, 185)">
+                            <rect x="0" y="0" width="160" height="45" rx="8" fill="#161B33" stroke="rgba(255,255,255,0.15)"/>
+                            <text x="15" y="27" fill="#fff" font-size="11" font-family="monospace">DocumentArchiveService</text>
+
+                            <rect x="180" y="0" width="140" height="45" rx="8" fill="#161B33" stroke="rgba(255,255,255,0.15)"/>
+                            <text x="195" y="27" fill="#fff" font-size="11" font-family="monospace">DebtEngineService</text>
+
+                            <rect x="340" y="0" width="120" height="45" rx="8" fill="#161B33" stroke="rgba(255,255,255,0.15)"/>
+                            <text x="355" y="27" fill="#fff" font-size="11" font-family="monospace">GeminiService</text>
+
+                            <rect x="480" y="0" width="130" height="45" rx="8" fill="#161B33" stroke="rgba(255,255,255,0.15)"/>
+                            <text x="495" y="27" fill="#fff" font-size="11" font-family="monospace">RemoteLogServer</text>
+
+                            <rect x="630" y="0" width="115" height="45" rx="8" fill="#161B33" stroke="rgba(255,255,255,0.15)"/>
+                            <text x="645" y="27" fill="#fff" font-size="11" font-family="monospace">AuthService</text>
+                        </g>
+
+                        <rect x="30" y="280" width="370" height="140" rx="12" fill="rgba(16, 185, 129, 0.08)" stroke="#10B981" stroke-width="1.5"/>
+                        <text x="45" y="305" fill="#34D399" font-family="sans-serif" font-weight="bold" font-size="14">LOKALER SPEICHER (Offline-First)</text>
+                        <text x="45" y="335" fill="#CBD5E1" font-size="12">• FileManager: /dms_files/&lt;UUID&gt;.pdf</text>
+                        <text x="45" y="360" fill="#CBD5E1" font-size="12">• UserDefaults: JSON Caches & Profil</text>
+                        <text x="45" y="385" fill="#CBD5E1" font-size="12">• AppLogger: In-Memory Ringspeicher (1000 Logs)</text>
+
+                        <rect x="430" y="280" width="380" height="140" rx="12" fill="rgba(245, 158, 11, 0.08)" stroke="#F59E0B" stroke-width="1.5"/>
+                        <text x="445" y="305" fill="#FBBF24" font-family="sans-serif" font-weight="bold" font-size="14">EXTERNE CLOUD & HARDWARE</text>
+                        <text x="445" y="335" fill="#CBD5E1" font-size="12">• Supabase: Auth, PostgreSQL & Storage</text>
+                        <text x="445" y="360" fill="#CBD5E1" font-size="12">• Google Gemini 3.6 API (SSE Streaming)</text>
+                        <text x="445" y="385" fill="#CBD5E1" font-size="12">• Apple VisionKit & PencilKit Hardware</text>
+                        <text x="445" y="410" fill="#CBD5E1" font-size="12">• GitHub Actions & SideStore Repo (gh-pages)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section id="mod-app">
+                <h2>📦 Modul-Katalog: Alle Swift-Dateien im Detail</h2>
+
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>1. DigitalesBueroApp.swift</h3>
+                        <span class="file-pill">AppModule / Entry</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Einstiegspunkt der Applikation (<code>@main</code>) und Wurzel der View-Hierarchie.</p>
+                    <ul>
+                        <li>Initialisiert zentrale State-Objects: <code>DocumentArchiveService</code>, <code>DebtEngineService</code>, <code>UserProfileService</code>, <code>UserSessionManager</code>, <code>DevModeStore</code>, <code>SubscriptionManager</code>.</li>
+                        <li>Verwaltet den Biometrie-Schutz (<code>FaceIDGuard</code>) mit automatischer Sperrung beim Verlassen der App (<code>scenePhase == .background</code>).</li>
+                        <li>Rendert die <code>FloatingTabBarView</code> (schwebende Tableiste für die 4 Haupt-Tabs: Schulden, Dokumente, Haushalt, KI-Assistent).</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-dms">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>2. DocumentArchiveModule.swift</h3>
+                        <span class="file-pill">DMS / 149 KB</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Herzstück des Dokumenten-Managementsystems (DMS).</p>
+                    <ul>
+                        <li><strong>Briefing-Karte (<code>executiveAssistantCard</code>):</strong> Zeigt dem Nutzer sofort Handlungsbedarf (überfällige Fristen, Mahnungen, Gesamtwert erfasster Beträge) und bietet 1-Tap Schnellaktionen.</li>
+                        <li><strong>Smarte Schnellfilter (<code>quickFilterBar</code>):</strong> Filtert mit einem Klick nach <em>Handlungsbedarf</em>, <em>Inkasso & Mahnung</em>, <em>Rechnungen</em>, <em>Verträge</em>, <em>Gesundheit</em> und <em>Erledigt</em>.</li>
+                        <li><strong>Volltext- & Betragssuche:</strong> Durchsucht in Echtzeit Titel, Absender, Aktenzeichen, OCR-Text, Tags, Notizen und numerische Geldbeträge.</li>
+                        <li><strong>Kontextmenüs:</strong> Langes Drücken auf Belege erlaubt Bearbeitung, Löschen, Statusänderung oder das direkte Aufsetzen eines Antwortschreibens.</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-creator">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>3. DocumentCreatorModule.swift</h3>
+                        <span class="file-pill">Doku-Ersteller / 50 KB</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Assistenten-gestützter Generator für DIN-5008-Geschäftsbriefe.</p>
+                    <ul>
+                        <li><strong>4-Stufen-Wizard:</strong>
+                            <ol>
+                                <li><em>Zweck & Vorlage:</em> Auswahl aus 7 rechtssicheren Vorlagen.</li>
+                                <li><em>Daten & Adressen:</em> Vorbefüllung aus <code>UserProfile</code> oder Bestandsdokumenten.</li>
+                                <li><em>Text & KI:</em> Vollwertiger Text-Editor mit Gemini-KI-Feinschliff (Rechtssicher, Kooperativ, Prägnant).</li>
+                                <li><em>DIN 5008 Vorschau & Signatur:</em> Digitales Briefpapier, PencilKit-Unterschrift und 1-Klick-DMS-Ablage.</li>
+                            </ol>
+                        </li>
+                        <li><strong>Vorlagen-Übersicht:</strong>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Vorlage</th>
+                                            <th>Rechtliche Grundlage</th>
+                                            <th>Zweck</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Inkasso-Widerspruch</strong></td>
+                                            <td>§ 4 Abs. 5 RDGEG, § 174 BGB</td>
+                                            <td>Vollmachtsrüge & Bestreiten unzulässiger Inkassogebühren</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Kündigung Vertrag / Abo</strong></td>
+                                            <td>§ 314 BGB, § 56 BGB</td>
+                                            <td>Fristgerechte Beendigung mit Bestätigungsbitte</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Ratenzahlungsangebot</strong></td>
+                                            <td>Vergleich / Stundung</td>
+                                            <td>Ratenvorschlag mit Zinsstopp und Ruhen von Mahnmaßnahmen</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Fristverlängerung</strong></td>
+                                            <td>§ 31 VwVfG / ZPO</td>
+                                            <td>Zeitgewinn zur Sachverhaltsaufklärung</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>DSGVO-Auskunft (Art. 15)</strong></td>
+                                            <td>Art. 15 & 17 DSGVO</td>
+                                            <td>Datenabfrage, Scoring-Werte & Löschungsanspruch</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Verjährungseinrede</strong></td>
+                                            <td>§ 214 Abs. 1 i.V.m. § 195 BGB</td>
+                                            <td>Zurückweisung verjährter Altforderungen</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Freier KI-Brief</strong></td>
+                                            <td>Individuell (Gemini 3.6)</td>
+                                            <td>Formulierung beliebiger Angelegenheiten nach DIN 5008</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-debts">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>4. DebtEngineService.swift & DebtDetailView.swift</h3>
+                        <span class="file-pill">Schulden-Management</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Verwaltung von Schulden, Mahnungen, Gläubigern und Ratenplänen.</p>
+                    <ul>
+                        <li><strong>Aktenzeichen-Logik:</strong> Erkennt automatisch Inkasso-Vorgänge anhand von Aktenzeichen und ordnet neue Briefe der Historie zu.</li>
+                        <li><strong>Verjährungsprüfung:</strong> Prüft automatisch das Erreichen der 3-jährigen Regelverjährung (§§ 195, 199 BGB) ab Jahresende und setzt ggf. den Status <code>isPotentiallyExpired</code>.</li>
+                        <li><strong>Timeline:</strong> Lückenlose Dokumentation jedes Zahlungseingangs, Gebührenaufschlags oder Schreibens mit vorher/nachher Salden.</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-scanner">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>5. ScannerModule.swift</h3>
+                        <span class="file-pill">Vision OCR</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Mobiler Dokumentenscanner mit automatischer Datenextraktion.</p>
+                    <ul>
+                        <li>Nutzt <code>VNDocumentCameraViewController</code> zur Kantenerkennung und Perspektivenkorrektur.</li>
+                        <li>Führt <code>VNRecognizeTextRequest</code> aus und parst automatisch IBANs, Rechnungsbeträge, Fälligkeitsdaten und Gläubigernamen via Regex & LLM-Heuristik.</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-chat">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>6. AIChatModule.swift & GeminiService.swift</h3>
+                        <span class="file-pill">KI & Code-Mutation</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> In-App Assistent und autonomer Code-Editor.</p>
+                    <ul>
+                        <li><strong>SSE Streaming:</strong> Empfängt Antworten von Gemini chunk-weise über einen <code>AsyncThrowingStream</code>.</li>
+                        <li><strong>Modell-Fallback Kette:</strong> Versucht nacheinander <code>gemini-3.6-flash</code> &rarr; <code>gemini-3.6-pro</code> &rarr; <code>gemini-2.5-flash</code>.</li>
+                        <li><strong>Code-Mutation Modus:</strong> Sendet Code-Änderungsanfragen an die Supabase Edge Function <code>ai-agent</code>, welche direkt auf das GitHub Repository committed und neue CI/CD-Builds triggert!</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="mod-diagnostics">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>7. RemoteLogServer.swift & AppLogger.swift</h3>
+                        <span class="file-pill">Diagnostik / Port 8080</span>
+                    </div>
+                    <p><strong>Aufgabe:</strong> Eingebetteter Web-Diagnoseserver für kabelloses Debugging auf physischen iPhones.</p>
+                    <ul>
+                        <li>Startet einen leichtgewichtigen TCP/HTTP-Server auf Port 8080 mittels <code>NWListener</code>.</li>
+                        <li>Erlaubt jedem Rechner im gleichen WLAN, über <code>http://&lt;iphone-ip&gt;:8080</code> eine interaktive Web-Konsole mit Farbcodierung, Filterung und Auto-Refresh aufzurufen!</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="models-dms">
+                <h2>📊 Zentrale Datenmodelle</h2>
+                <div class="card">
+                    <h4>AppDocument (DMS Entität)</h4>
+                    <pre><code>public struct AppDocument: Identifiable, Codable, Sendable {
+    public let id:            UUID
+    public let userId:        UUID
+    public var title:         String
+    public var category:      DocumentCategory // .debts, .contracts, .authorities, .household...
+    public var documentDate:  Date
+    public var dueDate:       Date?
+    public var sender:        String?
+    public var fileNumber:    String?
+    public var amount:        Decimal?
+    public var storagePath:   String?
+    public var localFileName: String?          // z. B. "&lt;UUID&gt;.pdf" in /dms_files/
+    public var fileType:      DocumentFileType // .pdf, .image, .other
+    public var ocrText:       String?
+    public var tags:          [String]
+    public var status:        DocumentStatus   // .inbox, .inProgress, .completed, .archived
+    public var notes:         String?
+    public let createdAt:     Date
+    public var updatedAt:     Date
+}</code></pre>
+                </div>
+            </section>
+
+            <section id="cicd-pipeline">
+                <h2>⚙️ CI/CD & Sideloading Pipeline</h2>
+                <p>
+                    Das Projekt wird vollständig über GitHub Actions gebaut. Es ist kein manueller Xcode-Export nötig.
+                </p>
+
+                <div class="card">
+                    <h4>Workflow: <code>.github/workflows/build_ipa.yml</code></h4>
+                    <ol>
+                        <li><strong>Trigger:</strong> Bei jedem Push auf <code>main</code> oder manuell via <code>workflow_dispatch</code>.</li>
+                        <li><strong>Runner:</strong> <code>macos-14</code> mit Xcode 16.</li>
+                        <li><strong>Versions-Extraktion:</strong> Liest <code>displayVersion</code> und <code>bundleVersion</code> aus <code>Package.swift</code>.</li>
+                        <li><strong>Icon-Generierung:</strong> <code>scripts/generate_icons.sh</code> erstellt alle benötigten AppIcon-Auflösungen.</li>
+                        <li><strong>Xcodebuild:</strong>
+                            <pre><code>xcodebuild build   -scheme DigitalesBuero   -destination 'generic/platform=iOS'   -configuration Release   -derivedDataPath build/DerivedData   CODE_SIGNING_ALLOWED=YES   CODE_SIGNING_REQUIRED=NO   CODE_SIGN_IDENTITY="-"   AD_HOC_CODE_SIGNING_ALLOWED=YES</code></pre>
+                        </li>
+                        <li><strong>IPA Packaging (<code>scripts/package_ipa.sh</code>):</strong> Packt das gebaute <code>.app</code>-Bundle in <code>dist/Payload/</code> und erzeugt <code>DigitalesBuero.ipa</code>.</li>
+                        <li><strong>SideStore Manifest (<code>scripts/generate_apps_json.sh</code>):</strong> Schreibt <code>apps.json</code> mit Dateigröße, Hash, Commit und Release-Notes.</li>
+                        <li><strong>Deployment (<code>peaceiris/actions-gh-pages@v3</code>):</strong> Veröffentlicht die IPA und <code>apps.json</code> auf dem Branch <code>gh-pages</code>.</li>
+                    </ol>
+                </div>
+
+                <div class="card" id="sidestore-deploy">
+                    <h4>SideStore Einbindung</h4>
+                    <p>Um die App auf einem iPhone ohne Rechner zu installieren oder zu aktualisieren:</p>
+                    <ol>
+                        <li>In SideStore auf den Tab <strong>Sources</strong> tippen.</li>
+                        <li>Oben rechts auf <strong>+</strong> tippen und folgende URL eingeben:
+                            <br><code>https://DevDealer05.github.io/DokuSys/apps.json</code>
+                        </li>
+                        <li>Die App <em>Digitales Büro</em> erscheint in SideStore und kann mit 1 Klick installiert und over-the-air aktualisiert werden.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="dev-setup">
+                <h2>💻 Entwickler-Guide: Lokales Arbeiten</h2>
+                <div class="card">
+                    <h4>1. Repository Klonen</h4>
+                    <pre><code>git clone https://github.com/DevDealer05/DokuSys.git
+cd DokuSys</code></pre>
+
+                    <h4>2. In Xcode öffnen</h4>
+                    <pre><code>open Package.swift</code></pre>
+                    <p>Xcode lädt alle Abhängigkeiten und wählt automatisch das Schema <code>DigitalesBuero</code>.</p>
+
+                    <h4>3. Auf physischem iPhone testen</h4>
+                    <ul>
+                        <li>iPhone per Kabel anschließen oder via Wireless Debugging verbinden.</li>
+                        <li>Eigenes Entwickler-Zertifikat (Personal Team) in den Signing-Settings auswählen.</li>
+                        <li>Build & Run drücken (Cmd + R).</li>
+                    </ul>
+                </div>
+
+                <div class="card" id="pitfalls">
+                    <h2>⚠️ Lessons Learned & Häufige Fallstricke</h2>
+
+                    <div class="callout danger">
+                        <div class="callout-title">1. Swift Ternär-Operator mit ShapeStyles</div>
+                        <p>
+                            In SwiftUI führt <code>isSelected ? Theme.primaryAccent : Theme.glassEdgeGradient</code> zu einem Compilerfehler, da <code>Color</code> und <code>LinearGradient</code> unterschiedliche konkrete Typen sind, obwohl beide <code>ShapeStyle</code> implementieren.
+                            <br><strong>Lösung:</strong> Immer mit <code>AnyShapeStyle(...)</code> typ-erweitern:
+                            <br><code>isSelected ? AnyShapeStyle(Theme.primaryAccent) : AnyShapeStyle(Theme.glassEdgeGradient)</code>
+                        </p>
+                    </div>
+
+                    <div class="callout warning">
+                        <div class="callout-title">2. CoreGraphics kCGPDFContext Keys</div>
+                        <p>
+                            In UIKit ist <code>format.documentInfo</code> vom Typ <code>[String: Any]</code>. Die CoreGraphics-Konstanten wie <code>kCGPDFContextCreator</code> sind jedoch <code>CFString</code>.
+                            <br><strong>Lösung:</strong> Immer explizit casten: <code>kCGPDFContextCreator as String: "..."</code>.
+                        </p>
+                    </div>
+
+                    <div class="callout warning">
+                        <div class="callout-title">3. AppDocument lokale Dateipfade</div>
+                        <p>
+                            Niemals temporäre Pfade (<code>NSTemporaryDirectory</code>) für persistente Belege speichern, da iOS diese nach App-Neustarts löscht.
+                            <br><strong>Lösung:</strong> PDFs immer in <code>FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("dms_files")</code> ablegen und in <code>AppDocument.localFileName</code> nur den Dateinamen speichern.
+                        </p>
+                    </div>
+
+                    <div class="callout info">
+                        <div class="callout-title">4. GitHub Actions YAML Formatierung</div>
+                        <p>
+                            In GitHub Actions Workflows (<code>.github/workflows/*.yml</code>) dürfen mehrzeilige Skripte innerhalb von <code>run: |</code> niemals Einrückungen auf Spalte 1 besitzen, da der YAML-Parser dies als neue YAML-Root-Keys fehlinterpretiert.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="doc-footer">
+                <p>Digitales Büro – Entwickler-Handbuch & Architektur-Dokumentation</p>
+                <p>Stand: September 2026 • Repository: <code>DevDealer05/DokuSys</code> • Version 1.2.5 (Build 17)</p>
+            </footer>
+
+        </main>
+    </div>
+
+</body>
+</html>
