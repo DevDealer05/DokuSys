@@ -42,6 +42,8 @@ final class AppSettingsStore: ObservableObject {
     @AppStorage("app.settings.notifyScanReminder") var notifyScanReminder: Bool = false
 
     // ── Dashboard / Overview ──────────────────────────────────────────────
+    @AppStorage("app.settings.showADHDFocusWidget")  var showADHDFocusWidget: Bool  = true
+    @AppStorage("app.settings.showWorkTimeWidget")   var showWorkTimeWidget: Bool   = true
     @AppStorage("app.settings.showChoresWidget")     var showChoresWidget: Bool     = false
     @AppStorage("app.settings.showLimitationBanner") var showLimitationBanner: Bool = true
 
@@ -287,13 +289,17 @@ struct UserSettingsView: View {
 
                 // ── Startseite & Widgets ───────────────────────────────
                 Section {
+                    toggle("ADHS Fokus-Assistent", icon: "brain.head.profile", color: .purple,
+                           binding: $settings.showADHDFocusWidget)
+                    toggle("Arbeitszeit-Widget", icon: "briefcase.fill", color: .green,
+                           binding: $settings.showWorkTimeWidget)
                     toggle("Putzplan-Widget", icon: "sparkles", color: .cyan,
                            binding: $settings.showChoresWidget)
                     toggle("Verjährungs-Hinweis", icon: "clock.badge.questionmark", color: .orange,
                            binding: $settings.showLimitationBanner)
                 } header: { hdr("Startseite & Widgets", icon: "square.grid.2x2") }
                 footer: {
-                    Text("Das Putzplan-Widget platziert die nächsten Haushaltsaufgaben direkt oben auf der Startseite.")
+                    Text("Der Fokus-Assistent zeigt immer nur die nächste 1 einzige Aktion gegen Überforderung. Das Arbeitszeit-Widget erfasst deine Schichten via GPS.")
                 }
 
                 // ── Datenschutz & Sicherheit ───────────────────────────

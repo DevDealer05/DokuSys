@@ -127,6 +127,11 @@
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SettingsModule.bc",
     "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SettingsModule.o"
   },
+  "/Users/runner/work/DokuSys/DokuSys/SmartAssistantModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SmartAssistantModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SmartAssistantModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/SmartAssistantModule.o"
+  },
   "/Users/runner/work/DokuSys/DokuSys/StorageService.swift" : {
     "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/StorageService.o",
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/StorageService.bc",
@@ -151,5 +156,10 @@
     "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.o",
     "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.bc",
     "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/UserSessionManager.o"
+  },
+  "/Users/runner/work/DokuSys/DokuSys/WorkTimeTrackerModule.swift" : {
+    "index-unit-output-path" : "/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/WorkTimeTrackerModule.o",
+    "llvm-bc" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/WorkTimeTrackerModule.bc",
+    "object" : "/Users/runner/work/DokuSys/DokuSys/build/DerivedData/Build/Intermediates.noindex/DigitalesBuero.build/Release-iphoneos/DigitalesBuero.build/Objects-normal/arm64/WorkTimeTrackerModule.o"
   }
 }

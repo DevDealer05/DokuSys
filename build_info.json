@@ -1,12 +1,12 @@
 {
   "appName": "Digitales Buero",
   "bundleIdentifier": "de.kim.DigitalesBuero",
-  "version": "1.2.5",
-  "build": "17",
-  "commit": "a7ab137",
-  "buildDate": "2026-09-07T22:46:41Z",
-  "ipaSize": 3051145,
-  "changeLog": "docs: Add comprehensive Developer Handbook (HTML and 6-page PDF)",
+  "version": "1.3.0",
+  "build": "18",
+  "commit": "d2fe057",
+  "buildDate": "2026-09-07T23:09:13Z",
+  "ipaSize": 3324497,
+  "changeLog": "fix(build): Fix ShapeStyle Color ternary and align internal access levels for xcodebuild",
   "repo": "DevDealer05/DokuSys",
   "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
   "sideStoreRepo": "https://DevDealer05.github.io/DokuSys/apps.json"

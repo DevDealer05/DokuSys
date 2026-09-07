@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BUILD_DATE</key>
-	<string>2026-09-07T22:44:43Z</string>
+	<string>2026-09-07T23:07:29Z</string>
 	<key>CFBundleDisplayName</key>
 	<string>Digitales Buero</string>
 	<key>CFBundleExecutable</key>
@@ -52,17 +52,21 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2.5</string>
+	<string>1.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>17</string>
+	<string>18</string>
 	<key>GIT_COMMIT_SHA</key>
-	<string>a7ab137</string>
+	<string>d2fe057</string>
 	<key>MinimumOSVersion</key>
 	<string>17.0</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Kamera zum Scannen von Briefen und Belegen</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Benachrichtigt dich beim Erreichen und Verlassen deines Arbeitsplatzes zum automatischen Einstempeln</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Standort für die Erkennung deines Arbeitsplatzes zur Zeiterfassung</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Fotos zum Dokumenten-Archiv hinzufügen</string>
 	<key>UILaunchScreen</key>

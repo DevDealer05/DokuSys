@@ -207,6 +207,9 @@ struct AppRootView: View {
 
     @StateObject private var documentService: DocumentArchiveService
     @StateObject private var devModeStore = DevModeStore()
+    @StateObject private var workTimeService = WorkTimeService()
+    @StateObject private var smartAssistantService = SmartAssistantService()
+    @StateObject private var geminiService = GeminiService()
 
     init(
         currentUserId: UUID,
@@ -249,6 +252,9 @@ struct AppRootView: View {
         }
         .ignoresSafeArea(edges: .bottom)
         .environmentObject(devModeStore)
+        .environmentObject(workTimeService)
+        .environmentObject(smartAssistantService)
+        .environmentObject(geminiService)
 
         // ── Scanner sheet ──────────────────────────────────────────────
         .sheet(isPresented: $showScanner) {
@@ -388,8 +394,13 @@ struct OverviewView: View {
 
     @EnvironmentObject private var debtEngine:  DebtEngineService
     @EnvironmentObject private var appSettings: AppSettingsStore
+    @EnvironmentObject private var workTimeService: WorkTimeService
+    @EnvironmentObject private var smartAssistantService: SmartAssistantService
+    @EnvironmentObject private var geminiService: GeminiService
     @StateObject private var householdService:  RealtimeHouseholdService
     @State private var showSettingsSheet: Bool = false
+    @State private var showWorkTimeDashboard: Bool = false
+    @State private var showAllTasksSheet: Bool = false
 
     @AppStorage("debt_overview_grouping") private var groupByCreditor: Bool = false
 
@@ -410,13 +421,40 @@ struct OverviewView: View {
 
     var body: some View {
         List {
+            // ── ADHS Single-Focus Assistent (Anti-Entscheidungsmüdigkeit) ───
+            if appSettings.showADHDFocusWidget {
+                Section {
+                    NextSingleActionCard(
+                        service: smartAssistantService,
+                        gemini: geminiService,
+                        onOpenAllTasks: { showAllTasksSheet = true }
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(.init(top: 8, leading: 16, bottom: 4, trailing: 16))
+                }
+            }
+
+            // ── Arbeitszeiterfassung & Schicht-Widget ───────────────────
+            if appSettings.showWorkTimeWidget {
+                Section {
+                    WorkTimeHomeWidget(
+                        service: workTimeService,
+                        onTapOpenDashboard: { showWorkTimeDashboard = true }
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(.init(top: 4, leading: 16, bottom: 4, trailing: 16))
+                }
+            }
+
             // ── Putzplan / Chores Widget (Optional on Home) ───────────
             if appSettings.showChoresWidget {
                 Section {
                     ChoresWidgetCard(service: householdService)
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(.init(top: 8, leading: 16, bottom: 4, trailing: 16))
+                        .listRowInsets(.init(top: 4, leading: 16, bottom: 4, trailing: 16))
                 }
             }
 
@@ -561,19 +599,40 @@ struct OverviewView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSettingsSheet = true
+                Menu {
+                    Button {
+                        showAllTasksSheet = true
+                    } label: {
+                        Label("Fokus & Brain Dump", systemImage: "brain.head.profile")
+                    }
+                    Button {
+                        showWorkTimeDashboard = true
+                    } label: {
+                        Label("Arbeitszeiterfassung", systemImage: "briefcase.fill")
+                    }
+                    Divider()
+                    Button {
+                        showSettingsSheet = true
+                    } label: {
+                        Label("Einstellungen", systemImage: "gearshape.fill")
+                    }
                 } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(Theme.primaryAccent)
                 }
-                .accessibilityLabel("Einstellungen")
+                .accessibilityLabel("Menü & Schnellzugriff")
             }
         }
         .sheet(isPresented: $showSettingsSheet) {
             UserSettingsView()
                 .environmentObject(appSettings)
+        }
+        .sheet(isPresented: $showWorkTimeDashboard) {
+            WorkTimeDashboardView(service: workTimeService)
+        }
+        .sheet(isPresented: $showAllTasksSheet) {
+            AllTasksManagerSheet(service: smartAssistantService)
         }
         .onAppear {
             householdService.start()

@@ -6,14 +6,14 @@
     "bundleIdentifier": "de.kim.DigitalesBuero",
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
-    "version": "1.2.5",
-    "versionDate": "2026-09-07T22:46:41Z",
-    "versionDescription": "v1.2.5 (Build 17, a7ab137): docs: Add comprehensive Developer Handbook (HTML and 6-page PDF)",
+    "version": "1.3.0",
+    "versionDate": "2026-09-07T23:09:13Z",
+    "versionDescription": "v1.3.0 (Build 18, d2fe057): fix(build): Fix ShapeStyle Color ternary and align internal access levels for xcodebuild",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 3051145,
+    "size": 3324497,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -21,10 +21,10 @@
     ]
   }],
   "news": [{
-    "title": "Digitales Buero v1.2.5 (Build 17)",
-    "identifier": "release-17-a7ab137",
-    "caption": "docs: Add comprehensive Developer Handbook (HTML and 6-page PDF)",
-    "date": "2026-09-07T22:46:41Z",
+    "title": "Digitales Buero v1.3.0 (Build 18)",
+    "identifier": "release-18-d2fe057",
+    "caption": "fix(build): Fix ShapeStyle Color ternary and align internal access levels for xcodebuild",
+    "date": "2026-09-07T23:09:13Z",
     "tintColor": "6E5BE8"
   }]
 }
