@@ -11,16 +11,16 @@ import UIKit
 // MARK: - 1. Datenmodelle
 // =============================================================================
 
-public enum TaskCategory: String, CaseIterable, Codable, Sendable, Identifiable {
+enum TaskCategory: String, CaseIterable, Codable, Sendable, Identifiable {
     case work         = "Arbeit & Beruf"
     case finance      = "Finanzen & Post"
     case household    = "Haushalt"
     case bureaucracy  = "Behörden & Recht"
     case personal     = "Persönlich"
 
-    public var id: String { rawValue }
+    var id: String { rawValue }
 
-    public var icon: String {
+    var icon: String {
         switch self {
         case .work:        return "briefcase.fill"
         case .finance:     return "creditcard.fill"
@@ -30,7 +30,7 @@ public enum TaskCategory: String, CaseIterable, Codable, Sendable, Identifiable 
         }
     }
 
-    public var color: Color {
+    var color: Color {
         switch self {
         case .work:        return .blue
         case .finance:     return .orange
@@ -41,13 +41,13 @@ public enum TaskCategory: String, CaseIterable, Codable, Sendable, Identifiable 
     }
 }
 
-public struct FocusSubStep: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var title: String
-    public var isCompleted: Bool
-    public var durationMinutes: Int
+struct FocusSubStep: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var title: String
+    var isCompleted: Bool
+    var durationMinutes: Int
 
-    public init(
+    init(
         id: UUID = UUID(),
         title: String,
         isCompleted: Bool = false,
@@ -60,17 +60,17 @@ public struct FocusSubStep: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
-public struct FocusTask: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var title: String
-    public var category: TaskCategory
-    public var estimatedMinutes: Int
-    public var subSteps: [FocusSubStep]
-    public var isCompleted: Bool
-    public var snoozedUntil: Date?
-    public let createdAt: Date
+struct FocusTask: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var title: String
+    var category: TaskCategory
+    var estimatedMinutes: Int
+    var subSteps: [FocusSubStep]
+    var isCompleted: Bool
+    var snoozedUntil: Date?
+    let createdAt: Date
 
-    public init(
+    init(
         id: UUID = UUID(),
         title: String,
         category: TaskCategory = .work,
@@ -90,29 +90,29 @@ public struct FocusTask: Identifiable, Codable, Sendable, Equatable {
         self.createdAt = createdAt
     }
 
-    public var isSnoozed: Bool {
+    var isSnoozed: Bool {
         guard let s = snoozedUntil else { return false }
         return s > Date()
     }
 
-    public var completedStepsCount: Int {
+    var completedStepsCount: Int {
         subSteps.filter { $0.isCompleted }.count
     }
 
-    public var progress: Double {
+    var progress: Double {
         guard !subSteps.isEmpty else { return isCompleted ? 1.0 : 0.0 }
         return Double(completedStepsCount) / Double(subSteps.count)
     }
 }
 
-public struct BrainDumpItem: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var rawText: String
-    public var suggestedCategory: String
-    public let createdAt: Date
-    public var isProcessed: Bool
+struct BrainDumpItem: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var rawText: String
+    var suggestedCategory: String
+    let createdAt: Date
+    var isProcessed: Bool
 
-    public init(
+    init(
         id: UUID = UUID(),
         rawText: String,
         suggestedCategory: String = "Gedanke",
@@ -132,17 +132,17 @@ public struct BrainDumpItem: Identifiable, Codable, Sendable, Equatable {
 // =============================================================================
 
 @MainActor
-public final class SmartAssistantService: ObservableObject {
+final class SmartAssistantService: ObservableObject {
 
-    @Published public var tasks: [FocusTask] = []
-    @Published public var brainDumpItems: [BrainDumpItem] = []
-    @Published public var isBreakingDownTask: Bool = false
-    @Published public var isProcessingDump: Bool = false
+    @Published var tasks: [FocusTask] = []
+    @Published var brainDumpItems: [BrainDumpItem] = []
+    @Published var isBreakingDownTask: Bool = false
+    @Published var isProcessingDump: Bool = false
 
     private let tasksStorageKey = "app_adhd_focus_tasks"
     private let brainDumpStorageKey = "app_adhd_brain_dump"
 
-    public init() {
+    init() {
         loadPersistedData()
         if tasks.isEmpty {
             seedSampleTasks()
@@ -203,21 +203,21 @@ public final class SmartAssistantService: ObservableObject {
 
     // ── Choice Paralysis Killer: Genau EINE aktive Aufgabe ────────────────
 
-    public var currentFocusTask: FocusTask? {
+    var currentFocusTask: FocusTask? {
         tasks.first(where: { !$0.isCompleted && !$0.isSnoozed })
     }
 
-    public var activeTasksCount: Int {
+    var activeTasksCount: Int {
         tasks.filter { !$0.isCompleted && !$0.isSnoozed }.count
     }
 
-    public var completedTodayCount: Int {
+    var completedTodayCount: Int {
         tasks.filter { $0.isCompleted }.count
     }
 
     // ── Aktionen ─────────────────────────────────────────────────────────
 
-    public func addTask(title: String, category: TaskCategory = .work, estimatedMinutes: Int = 5) {
+    func addTask(title: String, category: TaskCategory = .work, estimatedMinutes: Int = 5) {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let newTask = FocusTask(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -230,7 +230,7 @@ public final class SmartAssistantService: ObservableObject {
         saveTasks()
     }
 
-    public func completeTask(_ id: UUID) {
+    func completeTask(_ id: UUID) {
         if let idx = tasks.firstIndex(where: { $0.id == id }) {
             // Haptisches Erfolgs-Feedback für Dopamin!
             let generator = UINotificationFeedbackGenerator()
@@ -247,7 +247,7 @@ public final class SmartAssistantService: ObservableObject {
         }
     }
 
-    public func toggleSubStep(taskId: UUID, subStepId: UUID) {
+    func toggleSubStep(taskId: UUID, subStepId: UUID) {
         guard let tIdx = tasks.firstIndex(where: { $0.id == taskId }),
               let sIdx = tasks[tIdx].subSteps.firstIndex(where: { $0.id == subStepId }) else { return }
 
@@ -264,7 +264,7 @@ public final class SmartAssistantService: ObservableObject {
         saveTasks()
     }
 
-    public func snoozeTaskUntilTomorrow(_ id: UUID) {
+    func snoozeTaskUntilTomorrow(_ id: UUID) {
         guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
 
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -280,7 +280,7 @@ public final class SmartAssistantService: ObservableObject {
         AppLogger.shared.info("Fokus-Assistent", "Aufgabe ohne Schuldgefühle auf morgen verschoben: \(tasks[idx].title)")
     }
 
-    public func deleteTask(_ id: UUID) {
+    func deleteTask(_ id: UUID) {
         withAnimation {
             tasks.removeAll(where: { $0.id == id })
         }
@@ -289,7 +289,7 @@ public final class SmartAssistantService: ObservableObject {
 
     // ── Gemini Magic Breakdown: Grosse Aufgaben in 3-Min-Häppchen zerlegen ─
 
-    public func magicBreakdown(task: FocusTask, gemini: GeminiService) async {
+    func magicBreakdown(task: FocusTask, gemini: GeminiService) async {
         guard let idx = tasks.firstIndex(where: { $0.id == task.id }) else { return }
 
         isBreakingDownTask = true
@@ -355,7 +355,7 @@ public final class SmartAssistantService: ObservableObject {
 
     // ── Brain Dump: Gedanken sofort abwerfen & von KI aufräumen lassen ─────
 
-    public func addBrainDump(rawText: String) {
+    func addBrainDump(rawText: String) {
         guard !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let item = BrainDumpItem(rawText: rawText.trimmingCharacters(in: .whitespacesAndNewlines))
         withAnimation {
@@ -364,7 +364,7 @@ public final class SmartAssistantService: ObservableObject {
         saveBrainDump()
     }
 
-    public func processBrainDump(text: String, gemini: GeminiService) async {
+    func processBrainDump(text: String, gemini: GeminiService) async {
         guard !text.isEmpty else { return }
         isProcessingDump = true
 
@@ -426,20 +426,20 @@ public final class SmartAssistantService: ObservableObject {
 // MARK: - 3. NextSingleActionCard (Homescreen Single-Focus Widget)
 // =============================================================================
 
-public struct NextSingleActionCard: View {
-    @ObservedObject public var service: SmartAssistantService
-    public var gemini: GeminiService
-    public var onOpenAllTasks: () -> Void
+struct NextSingleActionCard: View {
+    @ObservedObject var service: SmartAssistantService
+    var gemini: GeminiService
+    var onOpenAllTasks: () -> Void
 
     @State private var showBrainDumpSheet: Bool = false
 
-    public init(service: SmartAssistantService, gemini: GeminiService, onOpenAllTasks: @escaping () -> Void = {}) {
+    init(service: SmartAssistantService, gemini: GeminiService, onOpenAllTasks: @escaping () -> Void = {}) {
         self.service = service
         self.gemini = gemini
         self.onOpenAllTasks = onOpenAllTasks
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 14) {
             // Header
             HStack {
@@ -616,19 +616,19 @@ public struct NextSingleActionCard: View {
 // MARK: - 4. BrainDumpSheet (Gedankenspeicher)
 // =============================================================================
 
-public struct BrainDumpSheet: View {
-    @ObservedObject public var service: SmartAssistantService
-    public var gemini: GeminiService
+struct BrainDumpSheet: View {
+    @ObservedObject var service: SmartAssistantService
+    var gemini: GeminiService
     @Environment(\.dismiss) private var dismiss
 
     @State private var inputText: String = ""
 
-    public init(service: SmartAssistantService, gemini: GeminiService) {
+    init(service: SmartAssistantService, gemini: GeminiService) {
         self.service = service
         self.gemini = gemini
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appBackground.ignoresSafeArea()
@@ -689,18 +689,18 @@ public struct BrainDumpSheet: View {
 // MARK: - 5. AllTasksManagerSheet
 // =============================================================================
 
-public struct AllTasksManagerSheet: View {
-    @ObservedObject public var service: SmartAssistantService
+struct AllTasksManagerSheet: View {
+    @ObservedObject var service: SmartAssistantService
     @Environment(\.dismiss) private var dismiss
 
     @State private var newTaskTitle: String = ""
     @State private var selectedCategory: TaskCategory = .work
 
-    public init(service: SmartAssistantService) {
+    init(service: SmartAssistantService) {
         self.service = service
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appBackground.ignoresSafeArea()

@@ -14,17 +14,17 @@ import PDFKit
 // MARK: - 1. Datenmodelle
 // =============================================================================
 
-public struct WorkShift: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var startTime: Date
-    public var endTime: Date?
-    public var breakMinutes: Int
-    public var workplaceName: String
-    public var hourlyRate: Decimal?
-    public var notes: String?
-    public var isAutoGeofenced: Bool
+struct WorkShift: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var startTime: Date
+    var endTime: Date?
+    var breakMinutes: Int
+    var workplaceName: String
+    var hourlyRate: Decimal?
+    var notes: String?
+    var isAutoGeofenced: Bool
 
-    public init(
+    init(
         id: UUID = UUID(),
         startTime: Date = Date(),
         endTime: Date? = nil,
@@ -44,39 +44,39 @@ public struct WorkShift: Identifiable, Codable, Sendable, Equatable {
         self.isAutoGeofenced = isAutoGeofenced
     }
 
-    public var durationSeconds: TimeInterval {
+    var durationSeconds: TimeInterval {
         let end = endTime ?? Date()
         let raw = max(0, end.timeIntervalSince(startTime) - TimeInterval(breakMinutes * 60))
         return raw
     }
 
-    public var netWorkingHours: Double {
+    var netWorkingHours: Double {
         return durationSeconds / 3600.0
     }
 
-    public var formattedDuration: String {
+    var formattedDuration: String {
         let totalSecs = Int(durationSeconds)
         let hours = totalSecs / 3600
         let minutes = (totalSecs % 3600) / 60
         return String(format: "%dh %02dm", hours, minutes)
     }
 
-    public var estimatedEarnings: Decimal? {
+    var estimatedEarnings: Decimal? {
         guard let rate = hourlyRate else { return nil }
         return Decimal(netWorkingHours) * rate
     }
 }
 
-public struct WorkplaceLocation: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var name: String
-    public var latitude: Double
-    public var longitude: Double
-    public var radiusMeters: Double
-    public var autoPromptOnEntry: Bool
-    public var autoPromptOnExit: Bool
+struct WorkplaceLocation: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var name: String
+    var latitude: Double
+    var longitude: Double
+    var radiusMeters: Double
+    var autoPromptOnEntry: Bool
+    var autoPromptOnExit: Bool
 
-    public init(
+    init(
         id: UUID = UUID(),
         name: String,
         latitude: Double,
@@ -95,15 +95,15 @@ public struct WorkplaceLocation: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
-public struct PlannedShift: Identifiable, Codable, Sendable, Equatable {
-    public let id: UUID
-    public var date: Date
-    public var startTimeString: String
-    public var endTimeString: String
-    public var roleOrNote: String?
-    public var isCompleted: Bool
+struct PlannedShift: Identifiable, Codable, Sendable, Equatable {
+    let id: UUID
+    var date: Date
+    var startTimeString: String
+    var endTimeString: String
+    var roleOrNote: String?
+    var isCompleted: Bool
 
-    public init(
+    init(
         id: UUID = UUID(),
         date: Date,
         startTimeString: String,
@@ -125,20 +125,20 @@ public struct PlannedShift: Identifiable, Codable, Sendable, Equatable {
 // =============================================================================
 
 @MainActor
-public final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelegate {
 
-    @Published public var activeShift: WorkShift? = nil
-    @Published public var savedWorkplaces: [WorkplaceLocation] = []
-    @Published public var shiftHistory: [WorkShift] = []
-    @Published public var plannedShifts: [PlannedShift] = []
-    @Published public var isPaused: Bool = false
-    @Published public var currentPauseStart: Date? = nil
-    @Published public var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var activeShift: WorkShift? = nil
+    @Published var savedWorkplaces: [WorkplaceLocation] = []
+    @Published var shiftHistory: [WorkShift] = []
+    @Published var plannedShifts: [PlannedShift] = []
+    @Published var isPaused: Bool = false
+    @Published var currentPauseStart: Date? = nil
+    @Published var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
 
     // Einstellungen via UserDefaults
-    @AppStorage("worktime_break_reminder_minutes") public var breakReminderMinutes: Int = 150 // 2.5 Std
-    @AppStorage("worktime_daily_target_hours") public var dailyTargetHours: Double = 8.0
-    @AppStorage("worktime_default_hourly_rate") public var defaultHourlyRateString: String = ""
+    @AppStorage("worktime_break_reminder_minutes") var breakReminderMinutes: Int = 150 // 2.5 Std
+    @AppStorage("worktime_daily_target_hours") var dailyTargetHours: Double = 8.0
+    @AppStorage("worktime_default_hourly_rate") var defaultHourlyRateString: String = ""
 
     private let locationManager = CLLocationManager()
     private let activeShiftKey = "app_active_work_shift"
@@ -146,7 +146,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
     private let historyKey = "app_work_shift_history"
     private let plannedShiftsKey = "app_planned_shifts"
 
-    public override init() {
+    override init() {
         super.init()
         self.locationManager.delegate = self
         self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -207,7 +207,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
 
     // ── Schicht-Steuerung ────────────────────────────────────────────────
 
-    public func startShift(workplaceName: String = "Arbeitsplatz", hourlyRate: Decimal? = nil, isAuto: Bool = false) {
+    func startShift(workplaceName: String = "Arbeitsplatz", hourlyRate: Decimal? = nil, isAuto: Bool = false) {
         guard activeShift == nil else { return }
 
         let rate = hourlyRate ?? Decimal(string: defaultHourlyRateString.replacingOccurrences(of: ",", with: "."))
@@ -229,7 +229,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         AppLogger.shared.info("Zeiterfassung", "Schicht gestartet bei '\(workplaceName)'.")
     }
 
-    public func pauseShift() {
+    func pauseShift() {
         guard activeShift != nil, !isPaused else { return }
         withAnimation {
             isPaused = true
@@ -237,7 +237,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         }
     }
 
-    public func resumeShift() {
+    func resumeShift() {
         guard activeShift != nil, isPaused, let pauseStart = currentPauseStart else { return }
         let elapsedPauseMinutes = Int(Date().timeIntervalSince(pauseStart) / 60)
         withAnimation {
@@ -248,7 +248,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         saveActiveShift()
     }
 
-    public func endShift(notes: String? = nil) {
+    func endShift(notes: String? = nil) {
         guard var shift = activeShift else { return }
 
         if isPaused, let pauseStart = currentPauseStart {
@@ -275,7 +275,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         AppLogger.shared.info("Zeiterfassung", "Schicht beendet: Dauer \(shift.formattedDuration).")
     }
 
-    public func deleteShift(_ id: UUID) {
+    func deleteShift(_ id: UUID) {
         withAnimation {
             shiftHistory.removeAll(where: { $0.id == id })
         }
@@ -284,18 +284,18 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
 
     // ── Geofencing & Standorte ───────────────────────────────────────────
 
-    public func requestLocationPermissions() {
+    func requestLocationPermissions() {
         locationManager.requestAlwaysAuthorization()
     }
 
-    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         self.locationAuthorizationStatus = manager.authorizationStatus
         if manager.authorizationStatus == .authorizedAlways || manager.authorizationStatus == .authorizedWhenInUse {
             updateAllGeofences()
         }
     }
 
-    public func addWorkplace(name: String, coordinate: CLLocationCoordinate2D, radiusMeters: Double = 150.0) {
+    func addWorkplace(name: String, coordinate: CLLocationCoordinate2D, radiusMeters: Double = 150.0) {
         let place = WorkplaceLocation(
             name: name,
             latitude: coordinate.latitude,
@@ -307,7 +307,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         startMonitoringWorkplace(place)
     }
 
-    public func deleteWorkplace(_ id: UUID) {
+    func deleteWorkplace(_ id: UUID) {
         if let place = savedWorkplaces.first(where: { $0.id == id }) {
             stopMonitoringWorkplace(place)
         }
@@ -344,7 +344,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         }
     }
 
-    nonisolated public func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         Task { @MainActor in
             guard let place = self.savedWorkplaces.first(where: { $0.id.uuidString == region.identifier }) else { return }
             if self.activeShift == nil {
@@ -358,7 +358,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         }
     }
 
-    nonisolated public func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         Task { @MainActor in
             guard let place = self.savedWorkplaces.first(where: { $0.id.uuidString == region.identifier }) else { return }
             if let shift = self.activeShift {
@@ -418,7 +418,7 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
 
     // ── Dienstplan / Schichtplan Scanner Extraktion ──────────────────────
 
-    public func parseScheduleFromOCR(text: String) {
+    func parseScheduleFromOCR(text: String) {
         var results: [PlannedShift] = []
         let lines = text.components(separatedBy: "\n")
 
@@ -457,21 +457,21 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
         }
     }
 
-    public func markPlannedShiftCompleted(_ id: UUID) {
+    func markPlannedShiftCompleted(_ id: UUID) {
         if let idx = plannedShifts.firstIndex(where: { $0.id == id }) {
             plannedShifts[idx].isCompleted.toggle()
             savePlannedShifts()
         }
     }
 
-    public func deletePlannedShift(_ id: UUID) {
+    func deletePlannedShift(_ id: UUID) {
         plannedShifts.removeAll(where: { $0.id == id })
         savePlannedShifts()
     }
 
     // ── Stundenzettel PDF Generator ──────────────────────────────────────
 
-    public func generateMonthlyTimesheetPDF(for month: Date, userName: String) -> URL? {
+    func generateMonthlyTimesheetPDF(for month: Date, userName: String) -> URL? {
         let calendar = Calendar.current
         let monthShifts = shiftHistory.filter { shift in
             calendar.isDate(shift.startTime, equalTo: month, toGranularity: .month)
@@ -588,19 +588,19 @@ public final class WorkTimeService: NSObject, ObservableObject, CLLocationManage
 // MARK: - 3. WorkTimeHomeWidget (Kompaktkarte für den Homescreen)
 // =============================================================================
 
-public struct WorkTimeHomeWidget: View {
-    @ObservedObject public var service: WorkTimeService
-    public var onTapOpenDashboard: () -> Void
+struct WorkTimeHomeWidget: View {
+    @ObservedObject var service: WorkTimeService
+    var onTapOpenDashboard: () -> Void
 
     @State private var now = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    public init(service: WorkTimeService, onTapOpenDashboard: @escaping () -> Void = {}) {
+    init(service: WorkTimeService, onTapOpenDashboard: @escaping () -> Void = {}) {
         self.service = service
         self.onTapOpenDashboard = onTapOpenDashboard
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 12) {
             HStack {
                 HStack(spacing: 8) {
@@ -612,7 +612,7 @@ public struct WorkTimeHomeWidget: View {
 
                     Text(service.activeShift == nil ? "Nicht eingestempelt" : (service.isPaused ? "Schicht pausiert" : "Schicht aktiv"))
                         .font(.caption.bold())
-                        .foregroundStyle(service.activeShift == nil ? .secondary : (service.isPaused ? .orange : .green))
+                        .foregroundStyle(service.activeShift == nil ? Color.secondary : (service.isPaused ? Color.orange : Color.green))
                 }
 
                 Spacer()
@@ -724,8 +724,8 @@ public struct WorkTimeHomeWidget: View {
 // MARK: - 4. WorkTimeDashboardView (Vollbild-Verwaltung)
 // =============================================================================
 
-public struct WorkTimeDashboardView: View {
-    @ObservedObject public var service: WorkTimeService
+struct WorkTimeDashboardView: View {
+    @ObservedObject var service: WorkTimeService
     @Environment(\.dismiss) private var dismiss
 
     @State private var showAddPlaceSheet: Bool = false
@@ -733,11 +733,11 @@ public struct WorkTimeDashboardView: View {
     @State private var showShareSheet: Bool = false
     @State private var generatedPDFURL: URL? = nil
 
-    public init(service: WorkTimeService) {
+    init(service: WorkTimeService) {
         self.service = service
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appBackground.ignoresSafeArea()
@@ -814,7 +814,7 @@ public struct WorkTimeDashboardView: View {
                 VStack(spacing: 4) {
                     Image(systemName: service.activeShift == nil ? "briefcase.fill" : (service.isPaused ? "pause.fill" : "stopwatch.fill"))
                         .font(.title2)
-                        .foregroundStyle(service.activeShift == nil ? .secondary : (service.isPaused ? .orange : Theme.primaryAccent))
+                        .foregroundStyle(service.activeShift == nil ? Color.secondary : (service.isPaused ? Color.orange : Theme.primaryAccent))
 
                     Text(service.activeShift?.formattedDuration ?? "0h 00m")
                         .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -960,7 +960,7 @@ public struct WorkTimeDashboardView: View {
                     } label: {
                         Image(systemName: p.isCompleted ? "checkmark.circle.fill" : "circle")
                             .font(.title3)
-                            .foregroundStyle(p.isCompleted ? .green : .secondary)
+                            .foregroundStyle(p.isCompleted ? Color.green : Color.secondary)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -1123,19 +1123,19 @@ public struct WorkTimeDashboardView: View {
 // MARK: - 5. Hilfs-Sheets (Ort markieren & Dienstplan-Scan)
 // =============================================================================
 
-public struct AddWorkplaceSheet: View {
-    @ObservedObject public var service: WorkTimeService
+struct AddWorkplaceSheet: View {
+    @ObservedObject var service: WorkTimeService
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String = ""
     @State private var radius: Double = 150.0
     @StateObject private var quickLocator = QuickLocationFetcher()
 
-    public init(service: WorkTimeService) {
+    init(service: WorkTimeService) {
         self.service = service
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appBackground.ignoresSafeArea()
@@ -1217,17 +1217,17 @@ public struct AddWorkplaceSheet: View {
     }
 }
 
-public struct WorkScheduleScannerSheet: View {
-    @ObservedObject public var service: WorkTimeService
+struct WorkScheduleScannerSheet: View {
+    @ObservedObject var service: WorkTimeService
     @Environment(\.dismiss) private var dismiss
 
     @State private var manualText: String = ""
 
-    public init(service: WorkTimeService) {
+    init(service: WorkTimeService) {
         self.service = service
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appBackground.ignoresSafeArea()
@@ -1290,22 +1290,22 @@ public struct WorkScheduleScannerSheet: View {
 
 // ── Einmaliger Standort-Ermittler ────────────────────────────────────────────
 
-public final class QuickLocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
-    @Published public var coordinate: CLLocationCoordinate2D? = nil
+final class QuickLocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var coordinate: CLLocationCoordinate2D? = nil
     private let manager = CLLocationManager()
 
-    public override init() {
+    override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
     }
 
-    public func start() {
+    func start() {
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
     }
 
-    public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
         self.coordinate = loc.coordinate
         manager.stopUpdatingLocation()
