@@ -75,6 +75,10 @@ else
     <string>Fotos zum Dokumenten-Archiv hinzufügen</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Standort für die Erkennung deines Arbeitsplatzes zur Zeiterfassung</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Benachrichtigt dich beim Erreichen und Verlassen deines Arbeitsplatzes zum automatischen Einstempeln</string>
 </dict>
 </plist>
 EOF
@@ -88,6 +92,8 @@ if [ -f "dist/Payload/DigitalesBuero.app/Info.plist" ]; then
     /usr/libexec/PlistBuddy -c "Set :NSFaceIDUsageDescription 'Face ID wird genutzt, um deine sensiblen Schulden- und Finanzdaten zu schützen'" "$PLIST" 2>/dev/null || true
     /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Kamera zum Scannen von Briefen und Belegen'" "$PLIST" 2>/dev/null || true
     /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Fotos zum Dokumenten-Archiv hinzufügen'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'Standort für die Erkennung deines Arbeitsplatzes zur Zeiterfassung'" "$PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'Benachrichtigt dich beim Erreichen und Verlassen deines Arbeitsplatzes zum automatischen Einstempeln'" "$PLIST" 2>/dev/null || true
 
     # AppIcon declarations for iOS SpringBoard / Home Screen
     /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string 'AppIcon60x60'" "$PLIST" 2>/dev/null || \
