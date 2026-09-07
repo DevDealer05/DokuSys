@@ -30,6 +30,7 @@ final class DevModeStore: ObservableObject {
     @AppStorage("gemini_api_key") var geminiApiKey: String = ""
     @AppStorage("ai_agent_url") var aiAgentUrl: String = "https://ucmkbhmtdpbxsbahzahj.supabase.co/functions/v1/ai-agent"
     @AppStorage("github_repo") var githubRepo: String = "DevDealer05/DokuSys"
+    @AppStorage("github_token") var githubToken: String = ""
 
     var buildInfo: BuildInfo { BuildInfo.current }
 
@@ -360,7 +361,15 @@ struct DevModePanel: View {
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
 
-                        Text("Einstellungen werden automatisch lokal gespeichert und nie an Server übertragen.")
+                        Text("GitHub Token (Personal Access Token)")
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                        SecureField("ghp_...", text: $store.githubToken)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        Text("Einstellungen werden automatisch lokal gespeichert und nie an fremde Server übertragen.")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }

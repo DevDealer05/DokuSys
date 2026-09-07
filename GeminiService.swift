@@ -300,27 +300,183 @@ final class GeminiService: ObservableObject {
         return hasYielded
     }
 
-    /// Sends a code-change request to the Supabase Edge Function
+    /// Sends a code-change request: first tries the Edge Function (if configured and responding),
+    /// and seamlessly falls back to direct Gemini 3.6 generation + native GitHub commit.
     func sendCodeChangeRequest(prompt: String, agentURL: String) async throws -> CodeChangeResponse {
-        guard let url = URL(string: agentURL) else {
-            throw GeminiError.networkError("Ungültige Agent-URL: \(agentURL)")
+        let repo = UserDefaults.standard.string(forKey: "github_repo") ?? "DevDealer05/DokuSys"
+        let token = UserDefaults.standard.string(forKey: "github_token")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        // 1. Optional: Try Supabase Edge Function if URL is configured and valid
+        if let url = URL(string: agentURL), !agentURL.isEmpty, !agentURL.contains("example") {
+            let body: [String: Any] = ["prompt": prompt, "repo": repo]
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            request.timeoutInterval = 8
+
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               let http = response as? HTTPURLResponse, http.statusCode == 200,
+               let result = try? JSONDecoder().decode(CodeChangeResponse.self, from: data) {
+                return result
+            }
         }
 
-        let body: [String: Any] = ["prompt": prompt, "repo": "DevDealer05/DokuSys"]
+        // 2. Native Direct Agent: Gemini 3.6 Flash + Direct GitHub API Commit
+        AppLogger.shared.info("KI-Agent", "Führe Code-Änderung direkt nativ über Gemini & GitHub API aus...")
+        return try await directCodeChangeRequest(prompt: prompt, repo: repo, token: token)
+    }
+
+    /// Führt die Code-Generierung direkt über Gemini 3.6 Flash aus und committet bei Bedarf via GitHub REST API
+    private func directCodeChangeRequest(prompt: String, repo: String, token: String) async throws -> CodeChangeResponse {
+        let apiKey = UserDefaults.standard.string(forKey: "gemini_api_key")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !apiKey.isEmpty else {
+            throw GeminiError.missingAPIKey
+        }
+
+        let systemContext = """
+        Du bist ein erfahrener iOS Swift-Entwickler für die App "Digitales Büro" (SwiftUI iOS 17+, Repo: \(repo)).
+        Wenn der Nutzer Code-Änderungen anfordert:
+        1. Erkläre kurz und präzise auf Deutsch, was du änderst.
+        2. Gib am Ende ZWINGEND einen JSON-Block in folgendem Format an:
+        CODE_CHANGES_JSON:[{"file":"Dateiname.swift","content":"kompletter neuer Dateiinhalt"}]
+        Wenn keine Code-Änderung erforderlich ist, antworte einfach mit einer hilfreichen Erklärung auf Deutsch.
+        """
+
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
+            throw GeminiError.networkError("Ungültige Gemini-URL")
+        }
+
+        let body: [String: Any] = [
+            "contents": [["role": "user", "parts": [["text": prompt]]]],
+            "systemInstruction": ["parts": [["text": systemContext]]],
+            "generationConfig": ["temperature": 0.3, "maxOutputTokens": 8192]
+        ]
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        request.timeoutInterval = 90
+        request.timeoutInterval = 60
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard status == 200 else {
-            throw GeminiError.networkError("Agent HTTP \(status)")
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw GeminiError.networkError("Gemini API HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
         }
-        guard let result = try? JSONDecoder().decode(CodeChangeResponse.self, from: data) else {
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let candidates = json["candidates"] as? [[String: Any]],
+              let content = candidates.first?["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              let fullText = parts.first?["text"] as? String else {
             throw GeminiError.parseError
         }
-        return result
+
+        // Parse CODE_CHANGES_JSON marker
+        let marker = "CODE_CHANGES_JSON:"
+        var displayText = fullText
+        var commitSHA: String? = nil
+
+        if let markerRange = fullText.range(of: marker) {
+            displayText = String(fullText[..<markerRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let jsonString = String(fullText[markerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if !token.isEmpty,
+               let jsonData = jsonString.data(using: .utf8),
+               let changes = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] {
+                do {
+                    commitSHA = try await commitFilesToGitHub(repo: repo, token: token, changes: changes, message: prompt)
+                    AppLogger.shared.success("KI-Agent", "Code erfolgreich zu GitHub committed: \(commitSHA ?? "")")
+                } catch {
+                    AppLogger.shared.warn("KI-Agent", "GitHub Commit fehlgeschlagen: \(error.localizedDescription)")
+                    displayText += "\n\n*(Code wurde generiert, aber GitHub-Commit konnte nicht übertragen werden: \(error.localizedDescription))*"
+                }
+            }
+        }
+
+        return CodeChangeResponse(
+            text: displayText,
+            commitSHA: commitSHA,
+            actionsUrl: commitSHA != nil ? "https://github.com/\(repo)/actions" : nil
+        )
+    }
+
+    /// Führt die 5 Git-Schritte zum Committen auf GitHub aus
+    private func commitFilesToGitHub(repo: String, token: String, changes: [[String: Any]], message: String) async throws -> String {
+        let baseURL = "https://api.github.com/repos/\(repo)"
+
+        // 1. Get HEAD of main branch
+        let refData = try await ghJSONRequest(url: "\(baseURL)/git/ref/heads/main", method: "GET", token: token)
+        guard let object = refData["object"] as? [String: Any],
+              let baseSHA = object["sha"] as? String else {
+            throw GeminiError.networkError("Konnte Haupt-Branch SHA nicht abrufen")
+        }
+
+        // 2. Create blobs
+        var treeItems: [[String: Any]] = []
+        for change in changes {
+            guard let file = change["file"] as? String,
+                  let content = change["content"] as? String else { continue }
+
+            let blobBody: [String: Any] = ["content": content, "encoding": "utf-8"]
+            let blobData = try await ghJSONRequest(url: "\(baseURL)/git/blobs", method: "POST", token: token, body: blobBody)
+            guard let blobSHA = blobData["sha"] as? String else { continue }
+
+            treeItems.append([
+                "path": file,
+                "mode": "100644",
+                "type": "blob",
+                "sha": blobSHA
+            ])
+        }
+
+        guard !treeItems.isEmpty else {
+            throw GeminiError.networkError("Keine Dateien zum Committen gefunden")
+        }
+
+        // 3. Create tree
+        let treeBody: [String: Any] = ["base_tree": baseSHA, "tree": treeItems]
+        let treeData = try await ghJSONRequest(url: "\(baseURL)/git/trees", method: "POST", token: token, body: treeBody)
+        guard let treeSHA = treeData["sha"] as? String else {
+            throw GeminiError.networkError("Konnte Git-Tree nicht erstellen")
+        }
+
+        // 4. Create commit
+        let commitBody: [String: Any] = [
+            "message": "KI-Agent: \(String(message.prefix(70)))",
+            "tree": treeSHA,
+            "parents": [baseSHA]
+        ]
+        let commitData = try await ghJSONRequest(url: "\(baseURL)/git/commits", method: "POST", token: token, body: commitBody)
+        guard let commitSHA = commitData["sha"] as? String else {
+            throw GeminiError.networkError("Konnte Git-Commit nicht erstellen")
+        }
+
+        // 5. Update ref main
+        let patchBody: [String: Any] = ["sha": commitSHA]
+        _ = try await ghJSONRequest(url: "\(baseURL)/git/refs/heads/main", method: "PATCH", token: token, body: patchBody)
+
+        return commitSHA
+    }
+
+    private func ghJSONRequest(url: String, method: String, token: String, body: [String: Any]? = nil) async throws -> [String: Any] {
+        guard let reqURL = URL(string: url) else { throw GeminiError.networkError("Ungültige URL: \(url)") }
+        var req = URLRequest(url: reqURL)
+        req.httpMethod = method
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let body = body {
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw GeminiError.networkError("GitHub API HTTP \(status)")
+        }
+
+        return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 }

@@ -491,8 +491,8 @@ struct AIChatView: View {
             }
             messages[idx].content = response
         } catch {
-            AppLogger.shared.warn("KI-Agent", "Edge-Function nicht erreichbar (\(error.localizedDescription)). Wechsle auf direkten Gemini Code-Assistenten...")
-            messages[idx].content = "⚠️ *Cloud-Agent nicht erreichbar (\(error.localizedDescription)). Gemini analysiert die Anfrage direkt als Code-Assistent:*\n\n"
+            AppLogger.shared.warn("KI-Agent", "Code-Anfrage fehlgeschlagen: \(error.localizedDescription)")
+            messages[idx].content = "⚠️ *Code-Anfrage fehlgeschlagen: \(error.localizedDescription). Wechsle auf direkten Assistenten:*\n\n"
             let codeSystemContext = """
             Du bist ein erfahrener iOS Swift-Entwickler für die App "Digitales Büro". \
             Beantworte Programmierfragen präzise auf Deutsch und liefere fertige, fehlerfreie Swift-Codeblöcke.
