@@ -1016,13 +1016,12 @@ public struct DocumentAssistantCreatorView: View {
     // ── PDF-Erstellung & DMS-Ablage ──────────────────────────────────────
 
     private func buildPDFData() -> Data {
-        let pdfMetaData = [
-            kCGPDFContextCreator: "Digitales Büro – Doku-Ersteller",
-            kCGPDFContextAuthor: draft.senderName,
-            kCGPDFContextTitle: draft.subject
-        ]
         let format = UIGraphicsPDFRendererFormat()
-        format.documentInfo = pdfMetaData as [String: Any]
+        format.documentInfo = [
+            kCGPDFContextCreator as String: "Digitales Büro – Doku-Ersteller",
+            kCGPDFContextAuthor as String: draft.senderName,
+            kCGPDFContextTitle as String: draft.subject
+        ]
 
         // DIN A4 @ 72 DPI: 595.2 x 841.8 pt
         let pageWidth: CGFloat = 595.2

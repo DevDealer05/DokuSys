@@ -61,6 +61,21 @@ jobs:
               grep -E 'error:|fatal:' xcodebuild.log | head -40 >> $GITHUB_STEP_SUMMARY || true
               tail -n 60 xcodebuild.log >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
+
+              ERR_PAYLOAD=$(python3 -c "
+import json
+with open('xcodebuild.log') as f:
+    lines = [l for l in f if 'error:' in l or 'fatal error:' in l]
+err = ''.join(lines[:20]) if lines else 'See full build log.'
+print(json.dumps({'body': '### ❌ Compilation Error:\n```\n' + err + '\n```'}))
+" 2>/dev/null || echo '{"body":"Build failed"}')
+
+              curl -s -X POST \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                https://api.github.com/repos/${{ github.repository }}/commits/${{ steps.info.outputs.commit }}/comments \
+                -d "$ERR_PAYLOAD" || true
+
               exit 1
             }
 
