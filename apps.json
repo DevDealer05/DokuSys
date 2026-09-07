@@ -6,14 +6,14 @@
     "bundleIdentifier": "de.kim.DigitalesBuero",
     "developerName": "Kim",
     "subtitle": "Schulden, Dokumente & Finanzen",
-    "version": "1.2.3",
-    "versionDate": "2026-09-07T12:27:15Z",
-    "versionDescription": "v1.2.3 (Build 15, 2b8dea8): feat(agent): native direct GitHub code change agent with Gemini 3.6 & Git database API, bump v1.2.3 (b15)",
+    "version": "1.2.4",
+    "versionDate": "2026-09-07T12:31:40Z",
+    "versionDescription": "v1.2.4 (Build 16, 451dfaa): fix(ui): fix chat input bar covered by tab bar and add interactive keyboard dismiss controls, bump v1.2.4 (b16)",
     "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
     "localizedDescription": "Digitales Buero – Einzelnutzung, Modernes Dokumenten-Management (DMS 2.0), Commercial-Modus & KI-Assistent.",
     "iconURL": "https://raw.githubusercontent.com/DevDealer05/DokuSys/main/icon.png",
     "tintColor": "6E5BE8",
-    "size": 2848727,
+    "size": 2859115,
     "permissions": [
       {"type": "camera", "usageDescription": "Kamera zum Scannen von Briefen und Belegen"},
       {"type": "photos", "usageDescription": "Fotos zum Dokumenten-Archiv hinzufügen"},
@@ -21,10 +21,10 @@
     ]
   }],
   "news": [{
-    "title": "Digitales Buero v1.2.3 (Build 15)",
-    "identifier": "release-15-2b8dea8",
-    "caption": "feat(agent): native direct GitHub code change agent with Gemini 3.6 & Git database API, bump v1.2.3 (b15)",
-    "date": "2026-09-07T12:27:15Z",
+    "title": "Digitales Buero v1.2.4 (Build 16)",
+    "identifier": "release-16-451dfaa",
+    "caption": "fix(ui): fix chat input bar covered by tab bar and add interactive keyboard dismiss controls, bump v1.2.4 (b16)",
+    "date": "2026-09-07T12:31:40Z",
     "tintColor": "6E5BE8"
   }]
 }

@@ -1,12 +1,12 @@
 {
   "appName": "Digitales Buero",
   "bundleIdentifier": "de.kim.DigitalesBuero",
-  "version": "1.2.3",
-  "build": "15",
-  "commit": "2b8dea8",
-  "buildDate": "2026-09-07T12:27:15Z",
-  "ipaSize": 2848727,
-  "changeLog": "feat(agent): native direct GitHub code change agent with Gemini 3.6 & Git database API, bump v1.2.3 (b15)",
+  "version": "1.2.4",
+  "build": "16",
+  "commit": "451dfaa",
+  "buildDate": "2026-09-07T12:31:40Z",
+  "ipaSize": 2859115,
+  "changeLog": "fix(ui): fix chat input bar covered by tab bar and add interactive keyboard dismiss controls, bump v1.2.4 (b16)",
   "repo": "DevDealer05/DokuSys",
   "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
   "sideStoreRepo": "https://DevDealer05.github.io/DokuSys/apps.json"

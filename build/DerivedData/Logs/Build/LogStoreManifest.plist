@@ -6,7 +6,7 @@
 	<integer>11</integer>
 	<key>logs</key>
 	<dict>
-		<key>6C36E71E-A212-4609-82EF-24C7938BA836</key>
+		<key>57C10FD1-C955-4E0D-A888-69DBB415C7B6</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -15,7 +15,7 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>6C36E71E-A212-4609-82EF-24C7938BA836.xcactivitylog</string>
+			<string>57C10FD1-C955-4E0D-A888-69DBB415C7B6.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -40,13 +40,13 @@
 			<key>signature</key>
 			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
 			<key>timeStartedRecording</key>
-			<real>810476764.70211399</real>
+			<real>810477021.19453597</real>
 			<key>timeStoppedRecording</key>
-			<real>810476828.92254698</real>
+			<real>810477093.01153398</real>
 			<key>title</key>
 			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
 			<key>uniqueIdentifier</key>
-			<string>6C36E71E-A212-4609-82EF-24C7938BA836</string>
+			<string>57C10FD1-C955-4E0D-A888-69DBB415C7B6</string>
 		</dict>
 	</dict>
 </dict>

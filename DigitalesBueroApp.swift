@@ -245,6 +245,7 @@ struct AppRootView: View {
                 selectedTab: $selectedTab,
                 onCameraAction: { showScanner = true }
             )
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .ignoresSafeArea(edges: .bottom)
         .environmentObject(devModeStore)
@@ -303,7 +304,7 @@ struct AppRootView: View {
 
         case .chat:
             NavigationStack {
-                AIChatView()
+                AIChatView(isEmbeddedInTabBar: true)
             }
 
         case .commercial:
