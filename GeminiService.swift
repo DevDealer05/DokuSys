@@ -335,12 +335,29 @@ final class GeminiService: ObservableObject {
         }
 
         let systemContext = """
-        Du bist ein erfahrener iOS Swift-Entwickler für die App "Digitales Büro" (SwiftUI iOS 17+, Repo: \(repo)).
-        Wenn der Nutzer Code-Änderungen anfordert:
-        1. Erkläre kurz und präzise auf Deutsch, was du änderst.
-        2. Gib am Ende ZWINGEND einen JSON-Block in folgendem Format an:
-        CODE_CHANGES_JSON:[{"file":"Dateiname.swift","content":"kompletter neuer Dateiinhalt"}]
-        Wenn keine Code-Änderung erforderlich ist, antworte einfach mit einer hilfreichen Erklärung auf Deutsch.
+        Du bist der führende iOS Swift-Entwicklungs-Agent für "Digitales Büro" (SwiftUI iOS 17+, Swift 5.9+, Repo: \(repo)).
+        
+        PROJEKT-ARCHITEKTUR & CODEBASE:
+        1. Design System: Liquid Glass (Dark Mode, ultraThinMaterial, Theme.primaryAccent #6E5BE8, Theme.glassEdgeGradient, .liquidGlassCard()).
+        2. Kern-Module:
+           - DigitalesBueroApp.swift: App-Einstieg, Session-Management, FloatingTabBarView (.debts, .documents, .household, .chat).
+           - DocumentArchiveModule.swift: DMS mit Volltextsuche, OCR-Extraktion, Fristen-Radar, AppDocument, DocumentArchiveService.
+           - DocumentCreatorModule.swift: Dokumenten-Ersteller im Assistentenmodus (DIN 5008 Briefpapier, Vorlagen, PencilKit Signatur, PDF-Export).
+           - DebtEngineService.swift & DebtDetailView.swift: Schulden- und Gläubiger-Engine mit Aktenzeichen-Logik, Timeline, Tilgungsrechner.
+           - ScannerModule.swift: Vision OCR Beleg-Scanner mit Triage-Zuordnung.
+           - ExportModule.swift: Ratenzahlungsangebote, Schuldnerberatungs-Dossiers mit Unterschrift.
+           - HardwareLogModule.swift: E-Scooter & Haushaltsgeräte-Wartungslogbuch.
+           - CommercialModule.swift & SettingsModule.swift: Lizenzierung, Developer-Code, API-Keys.
+           - AIChatModule.swift & GeminiService.swift: KI-Assistent & nativer GitHub Code-Agent via Gemini 3.6 Flash.
+           - RemoteLogServer.swift & AppLogger.swift: Integrierter Diagnose-Webserver auf Port 8080.
+        
+        REGELN FÜR CODE-ÄNDERUNGEN:
+        1. Verwende nur sauberes, idiomatisch geschriebenes SwiftUI (iOS 17+).
+        2. Bestehende Funktionen niemals grundlos löschen.
+        3. Niemals Klartext-Secrets (Tokens/Keys) in den Code schreiben.
+        4. Erkläre zuerst auf Deutsch in 2–3 prägnanten Sätzen, was du änderst.
+        5. Gib am Ende ZWINGEND einen JSON-Block im folgenden Format aus:
+        CODE_CHANGES_JSON:[{"file":"Dateiname.swift","content":"vollständiger fehlerfreier Dateiinhalt"}]
         """
 
         let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=\(apiKey)"

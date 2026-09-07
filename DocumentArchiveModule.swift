@@ -652,7 +652,8 @@ public final class DocumentArchiveService: ObservableObject {
                 let tagMatch    = doc.tags.contains { $0.lowercased().contains(q) }
                 let ocrMatch    = doc.ocrText?.lowercased().contains(q) ?? false
                 let notesMatch  = doc.notes?.lowercased().contains(q) ?? false
-                if !(titleMatch || senderMatch || fileMatch || tagMatch || ocrMatch || notesMatch) {
+                let amtMatch    = doc.amount != nil && "\(doc.amount!)".contains(q)
+                if !(titleMatch || senderMatch || fileMatch || tagMatch || ocrMatch || notesMatch || amtMatch) {
                     return false
                 }
             }
@@ -923,15 +924,33 @@ public struct DocumentGridCard: View {
 // MARK: - 6. DocumentArchiveView (Main DMS View)
 // =============================================================================
 
+public enum DMSQuickFilter: String, CaseIterable, Identifiable, Sendable {
+    case all          = "Alle"
+    case actionNeeded = "⚡️ Handlungsbedarf"
+    case debts        = "⚠️ Inkasso & Mahnung"
+    case invoices     = "🧾 Rechnungen"
+    case contracts    = "📋 Verträge"
+    case health       = "🩺 Gesundheit"
+    case completed    = "✅ Erledigt"
+
+    public var id: String { rawValue }
+}
+
 public struct DocumentArchiveView: View {
     @ObservedObject public var service: DocumentArchiveService
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var showAddSheet:     Bool = false
-    @State private var selectedDocument: AppDocument? = nil
-    @State private var isGridView:       Bool = false
-    @State private var sortOption:       DMSSortOption = .newest
-    @State private var filterUrgentOnly: Bool = false
+    @State private var showAddSheet:          Bool = false
+    @State private var showCreatorSheet:      Bool = false
+    @State private var creatorTargetDocument: AppDocument? = nil
+    @State private var editingDocument:       AppDocument? = nil
+    @State private var showAIChatSheet:       Bool = false
+    @State private var aiChatPrompt:          String = ""
+    @State private var selectedDocument:      AppDocument? = nil
+    @State private var isGridView:            Bool = false
+    @State private var sortOption:            DMSSortOption = .newest
+    @State private var filterUrgentOnly:      Bool = false
+    @State private var quickFilter:           DMSQuickFilter = .all
 
     public init(service: DocumentArchiveService) {
         self.service = service
@@ -941,6 +960,22 @@ public struct DocumentArchiveView: View {
         var list = service.filteredDocuments
         if filterUrgentOnly {
             list = list.filter { $0.isDeadlineUrgent || $0.isOverdue }
+        }
+        switch quickFilter {
+        case .all:
+            break
+        case .actionNeeded:
+            list = list.filter { $0.isDeadlineUrgent || $0.isOverdue || $0.status == .inbox || $0.status == .inProgress || $0.status == .deadlineSet }
+        case .debts:
+            list = list.filter { $0.category == .debts }
+        case .invoices:
+            list = list.filter { $0.category == .invoices }
+        case .contracts:
+            list = list.filter { $0.category == .contracts }
+        case .health:
+            list = list.filter { $0.category == .health }
+        case .completed:
+            list = list.filter { $0.status == .completed || $0.status == .archived }
         }
         switch sortOption {
         case .newest:
@@ -958,11 +993,17 @@ public struct DocumentArchiveView: View {
         ScrollView {
             VStack(spacing: 16) {
 
+                // ── KI-Büro-Assistent Briefing Card ────────────────────
+                executiveAssistantCard
+
                 // ── KPI Dashboard Cards ────────────────────────────────
                 kpiDashboard
 
                 // ── Search & Mode Switcher Bar ─────────────────────────
                 searchAndFilterBar
+
+                // ── Smarte Quick-Filter Leiste ─────────────────────────
+                quickFilterBar
 
                 // ── Category Pills (Horizontal with Counts) ────────────
                 categoryPillsSection
@@ -982,24 +1023,205 @@ public struct DocumentArchiveView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showAddSheet = true
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20, weight: .bold))
+                HStack(spacing: 10) {
+                    Button {
+                        creatorTargetDocument = nil
+                        showCreatorSheet = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pencil.and.scribble")
+                            Text("Schreiben")
+                                .font(.caption.bold())
+                        }
                         .foregroundStyle(Theme.primaryAccent)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Theme.primaryAccent.opacity(0.12), in: Capsule())
+                    }
+                    .accessibilityLabel("Schreiben erstellen")
+
+                    Button {
+                        showAddSheet = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(Theme.primaryAccent)
+                    }
+                    .accessibilityLabel("Dokument hinzufügen")
                 }
-                .accessibilityLabel("Dokument hinzufügen")
             }
         }
         .sheet(isPresented: $showAddSheet) {
             AddDocumentSheet(service: service)
+        }
+        .sheet(isPresented: $showCreatorSheet) {
+            DocumentAssistantCreatorView(service: service, initialDocument: creatorTargetDocument)
+        }
+        .sheet(item: $editingDocument) { doc in
+            EditDocumentSheet(document: doc, service: service)
+        }
+        .sheet(isPresented: $showAIChatSheet) {
+            AIChatSheet(initialPrompt: aiChatPrompt)
         }
         .sheet(item: $selectedDocument) { doc in
             NavigationStack {
                 DocumentDetailView(document: doc, service: service)
             }
         }
+    }
+
+    // ── KI-Büro-Assistent Briefing Card ────────────────────────────────
+
+    private var executiveAssistantCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Theme.primaryAccent.opacity(0.18))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Theme.primaryAccent)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("Dein KI-Büro-Assistent")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text("Aktiv")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15), in: Capsule())
+                    }
+
+                    let urgentCount = service.urgentDocuments.count
+                    if urgentCount > 0 {
+                        Text("⚠️ \(urgentCount) Frist(en) aktiv! Ich empfehle eine zeitnahe Prüfung.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else if !service.documents.isEmpty {
+                        Text("✨ Alle \(service.documents.count) Dokumente geprüft & sauber archiviert.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Bereit für Belege, Rechnungen, Fristen & Kündigungen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Quick Actions
+            HStack(spacing: 8) {
+                Button {
+                    creatorTargetDocument = nil
+                    showCreatorSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "pencil.and.scribble")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("Schreiben aufsetzen")
+                            .font(.caption.bold())
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Theme.primaryGradient, in: Capsule())
+                }
+
+                Button {
+                    showAddSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 11))
+                        Text("Scannen")
+                            .font(.caption.bold())
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+                }
+
+                Button {
+                    aiChatPrompt = buildArchiveSummaryPrompt()
+                    showAIChatSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                            .font(.system(size: 11))
+                        Text("Assistent")
+                            .font(.caption.bold())
+                    }
+                    .foregroundStyle(Theme.primaryAccent)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Theme.primaryAccent.opacity(0.12), in: Capsule())
+                }
+            }
+        }
+        .padding(14)
+        .liquidGlassCard(cornerRadius: 18)
+        .padding(.horizontal, 16)
+    }
+
+    // ── Smarte Quick-Filter Leiste ─────────────────────────────────────
+
+    private var quickFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(DMSQuickFilter.allCases) { qf in
+                    let isSelected = quickFilter == qf
+                    Button {
+                        withAnimation(.spring(response: 0.3)) {
+                            quickFilter = qf
+                            if qf != .all {
+                                service.selectedCategory = nil
+                            }
+                        }
+                    } label: {
+                        Text(qf.rawValue)
+                            .font(.caption.bold())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(
+                                isSelected
+                                    ? Theme.primaryAccent.opacity(0.22)
+                                    : Color.white.opacity(0.05),
+                                in: Capsule()
+                            )
+                            .overlay {
+                                if isSelected {
+                                    Capsule().strokeBorder(Theme.primaryAccent, lineWidth: 1)
+                                }
+                            }
+                            .foregroundStyle(isSelected ? Theme.primaryAccent : .secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func buildArchiveSummaryPrompt() -> String {
+        var parts: [String] = []
+        parts.append("Hallo Assistent! Bitte gib mir einen Überblick über mein gesamtes Dokumentenarchiv und hebe die wichtigsten Punkte hervor:")
+        parts.append("Anzahl Dokumente: \(service.documents.count)")
+        let urgent = service.urgentDocuments
+        if !urgent.isEmpty {
+            parts.append("Dringende Fristen (\(urgent.count)):")
+            for d in urgent {
+                let dueStr = d.dueDate?.formatted(date: .numeric, time: .omitted) ?? "unbekannt"
+                let amtStr = d.amount != nil ? " (\(d.amount!.formatted(.currency(code: "EUR"))))" : ""
+                parts.append("• \(d.title) – Fällig am: \(dueStr)\(amtStr)")
+            }
+        } else {
+            parts.append("Keine überfälligen oder dringenden Fristen.")
+        }
+        parts.append("\nGesamtwert erfasster Beträge: \(service.totalAmountSum.formatted(.currency(code: "EUR")))")
+        parts.append("\nWelche Dokumente sollte ich als Nächstes bearbeiten, wo drohen Kosten oder Fristversäumnisse, und welche Schreiben empfiehlst du mir aufzusetzen?")
+        return parts.joined(separator: "\n")
     }
 
     // ── KPI Header ─────────────────────────────────────────────────────
@@ -1287,6 +1509,9 @@ public struct DocumentArchiveView: View {
                     DocumentGridCard(document: doc) {
                         selectedDocument = doc
                     }
+                    .contextMenu {
+                        documentContextMenu(for: doc)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -1296,9 +1521,48 @@ public struct DocumentArchiveView: View {
                     DocumentCardRow(document: doc) {
                         selectedDocument = doc
                     }
+                    .contextMenu {
+                        documentContextMenu(for: doc)
+                    }
                 }
             }
             .padding(.horizontal, 16)
+        }
+    }
+
+    @ViewBuilder
+    private func documentContextMenu(for doc: AppDocument) -> some View {
+        Button {
+            editingDocument = doc
+        } label: {
+            Label("Bearbeiten", systemImage: "pencil")
+        }
+
+        Button {
+            creatorTargetDocument = doc
+            showCreatorSheet = true
+        } label: {
+            Label("Antwortschreiben mit Assistent verfassen", systemImage: "pencil.line")
+        }
+
+        Menu {
+            ForEach(DocumentStatus.allCases) { st in
+                Button {
+                    service.updateStatus(doc.id, newStatus: st)
+                } label: {
+                    Label(st.rawValue, systemImage: st.icon)
+                }
+            }
+        } label: {
+            Label("Status ändern (\(doc.status.rawValue))", systemImage: "arrow.triangle.2.circlepath")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            service.deleteDocument(doc.id)
+        } label: {
+            Label("Löschen", systemImage: "trash")
         }
     }
 
@@ -2112,6 +2376,7 @@ public struct DocumentDetailView: View {
     @State private var showFullScreenViewer: Bool = false
     @State private var showEditSheet:        Bool = false
     @State private var showAIChat:           Bool = false
+    @State private var showCreatorSheet:     Bool = false
 
     public var currentDoc: AppDocument {
         service.documents.first(where: { $0.id == document.id }) ?? document
@@ -2154,6 +2419,9 @@ public struct DocumentDetailView: View {
         }
         .sheet(isPresented: $showEditSheet) {
             EditDocumentSheet(document: currentDoc, service: service)
+        }
+        .sheet(isPresented: $showCreatorSheet) {
+            DocumentAssistantCreatorView(service: service, initialDocument: currentDoc)
         }
         .sheet(isPresented: $showFullScreenViewer) {
             FullScreenDocumentViewer(document: currentDoc)
@@ -2396,6 +2664,23 @@ public struct DocumentDetailView: View {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .strokeBorder(Theme.glassEdgeGradient, lineWidth: 1)
                 }
+            }
+
+            // Antwortschreiben mit Assistent erstellen
+            Button {
+                showCreatorSheet = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "pencil.line")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Antwortschreiben mit Assistent erstellen")
+                        .font(.subheadline.bold())
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Color.blue.opacity(0.85), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: Color.blue.opacity(0.3), radius: 8, y: 3)
             }
 
             // Mit KI analysieren & beraten
