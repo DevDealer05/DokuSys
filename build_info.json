@@ -1,12 +1,12 @@
 {
   "appName": "Digitales Buero",
   "bundleIdentifier": "de.kim.DigitalesBuero",
-  "version": "1.2.4",
-  "build": "16",
-  "commit": "451dfaa",
-  "buildDate": "2026-09-07T12:31:40Z",
-  "ipaSize": 2859115,
-  "changeLog": "fix(ui): fix chat input bar covered by tab bar and add interactive keyboard dismiss controls, bump v1.2.4 (b16)",
+  "version": "1.2.5",
+  "build": "17",
+  "commit": "4e0b5cc",
+  "buildDate": "2026-09-07T22:37:26Z",
+  "ipaSize": 3051144,
+  "changeLog": "fix(creator): Wrap strokeBorder style in AnyShapeStyle to fix ternary type mismatch",
   "repo": "DevDealer05/DokuSys",
   "downloadURL": "https://DevDealer05.github.io/DokuSys/DigitalesBuero.ipa",
   "sideStoreRepo": "https://DevDealer05.github.io/DokuSys/apps.json"
