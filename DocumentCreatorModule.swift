@@ -555,7 +555,7 @@ public struct DocumentAssistantCreatorView: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Theme.primaryAccent : Theme.glassEdgeGradient,
+                        isSelected ? AnyShapeStyle(Theme.primaryAccent) : AnyShapeStyle(Theme.glassEdgeGradient),
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
