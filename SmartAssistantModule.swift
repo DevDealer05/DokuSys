@@ -290,7 +290,8 @@ final class SmartAssistantService: ObservableObject {
     // ── Gemini Magic Breakdown: Grosse Aufgaben in 3-Min-Häppchen zerlegen ─
 
     func magicBreakdown(task: FocusTask, gemini: GeminiService) async {
-        guard let idx = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        guard tasks.firstIndex(where: { $0.id == task.id }) != nil else { return }
+        let taskId = task.id                // ← ID merken, nicht Index!
 
         isBreakingDownTask = true
         let prompt = """
@@ -329,8 +330,9 @@ final class SmartAssistantService: ObservableObject {
 
             await MainActor.run {
                 withAnimation(.spring(response: 0.4)) {
-                    if !newSubSteps.isEmpty {
-                        self.tasks[idx].subSteps = newSubSteps
+                    if !newSubSteps.isEmpty,
+                       let i = self.tasks.firstIndex(where: { $0.id == taskId }) {
+                        self.tasks[i].subSteps = newSubSteps
                     }
                     self.isBreakingDownTask = false
                 }
@@ -341,11 +343,13 @@ final class SmartAssistantService: ObservableObject {
             await MainActor.run {
                 // Fallback ohne KI
                 withAnimation {
-                    self.tasks[idx].subSteps = [
-                        FocusSubStep(title: "Platz schaffen & Unterlagen bereitlegen (2 Min)", durationMinutes: 2),
-                        FocusSubStep(title: "Den ersten Teilschritt beginnen (3 Min)", durationMinutes: 3),
-                        FocusSubStep(title: "Abschließen und kurz durchatmen (1 Min)", durationMinutes: 1)
-                    ]
+                    if let i = self.tasks.firstIndex(where: { $0.id == taskId }) {
+                        self.tasks[i].subSteps = [
+                            FocusSubStep(title: "Platz schaffen & Unterlagen bereitlegen (2 Min)", durationMinutes: 2),
+                            FocusSubStep(title: "Den ersten Teilschritt beginnen (3 Min)", durationMinutes: 3),
+                            FocusSubStep(title: "Abschließen und kurz durchatmen (1 Min)", durationMinutes: 1)
+                        ]
+                    }
                     self.isBreakingDownTask = false
                 }
                 self.saveTasks()

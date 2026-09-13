@@ -14,6 +14,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     @Published var isAuthorized: Bool = false
     
+    /// Called when a work-time notification action button is tapped.
+    /// WorkTimeService sets this in its init().
+    var onWorkTimeAction: ((String, [String: Any]) -> Void)?
+    
     private override init() {
         super.init()
         center.delegate = self
@@ -83,4 +87,24 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     ) {
         completionHandler([.banner, .badge, .sound])
     }
+    
+    // ── Action Button Handler (START_SHIFT, END_SHIFT, SNOOZE_15) ──────
+    
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let actionId = response.actionIdentifier
+        let userInfo = response.notification.request.content.userInfo as? [String: Any] ?? [:]
+
+        let workActions: Set<String> = ["START_SHIFT", "END_SHIFT", "SNOOZE_15"]
+        if workActions.contains(actionId) {
+            Task { @MainActor in
+                self.onWorkTimeAction?(actionId, userInfo)
+            }
+        }
+        completionHandler()
+    }
 }
+

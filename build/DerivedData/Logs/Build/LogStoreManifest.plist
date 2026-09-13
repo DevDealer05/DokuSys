@@ -6,7 +6,7 @@
 	<integer>11</integer>
 	<key>logs</key>
 	<dict>
-		<key>74C932D3-80DA-41A1-94EB-8524A29C338C</key>
+		<key>93E8FCA8-38A4-4C7C-9A1E-716CFE4DD010</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -15,7 +15,7 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>74C932D3-80DA-41A1-94EB-8524A29C338C.xcactivitylog</string>
+			<string>93E8FCA8-38A4-4C7C-9A1E-716CFE4DD010.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -29,7 +29,7 @@
 				<key>totalNumberOfTestFailures</key>
 				<integer>0</integer>
 				<key>totalNumberOfWarnings</key>
-				<integer>2</integer>
+				<integer>1</integer>
 			</dict>
 			<key>schemeIdentifier-containerName</key>
 			<string>DokuSys</string>
@@ -40,13 +40,13 @@
 			<key>signature</key>
 			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
 			<key>timeStartedRecording</key>
-			<real>810515271.07038903</real>
+			<real>810952305.80132699</real>
 			<key>timeStoppedRecording</key>
-			<real>810515347.69266105</real>
+			<real>810952362.66075397</real>
 			<key>title</key>
 			<string>Building workspace DokuSys with scheme DigitalesBuero and configuration Release</string>
 			<key>uniqueIdentifier</key>
-			<string>74C932D3-80DA-41A1-94EB-8524A29C338C</string>
+			<string>93E8FCA8-38A4-4C7C-9A1E-716CFE4DD010</string>
 		</dict>
 	</dict>
 </dict>

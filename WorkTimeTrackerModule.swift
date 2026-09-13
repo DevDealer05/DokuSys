@@ -23,6 +23,8 @@ struct WorkShift: Identifiable, Codable, Sendable, Equatable {
     var hourlyRate: Decimal?
     var notes: String?
     var isAutoGeofenced: Bool
+    var isPaused: Bool
+    var currentPauseStart: Date?
 
     init(
         id: UUID = UUID(),
@@ -32,7 +34,9 @@ struct WorkShift: Identifiable, Codable, Sendable, Equatable {
         workplaceName: String = "Arbeitsplatz",
         hourlyRate: Decimal? = nil,
         notes: String? = nil,
-        isAutoGeofenced: Bool = false
+        isAutoGeofenced: Bool = false,
+        isPaused: Bool = false,
+        currentPauseStart: Date? = nil
     ) {
         self.id = id
         self.startTime = startTime
@@ -42,12 +46,36 @@ struct WorkShift: Identifiable, Codable, Sendable, Equatable {
         self.hourlyRate = hourlyRate
         self.notes = notes
         self.isAutoGeofenced = isAutoGeofenced
+        self.isPaused = isPaused
+        self.currentPauseStart = currentPauseStart
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, startTime, endTime, breakMinutes, workplaceName, hourlyRate, notes, isAutoGeofenced, isPaused, currentPauseStart
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        startTime = try container.decode(Date.self, forKey: .startTime)
+        endTime = try container.decodeIfPresent(Date.self, forKey: .endTime)
+        breakMinutes = try container.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 0
+        workplaceName = try container.decodeIfPresent(String.self, forKey: .workplaceName) ?? "Arbeitsplatz"
+        hourlyRate = try container.decodeIfPresent(Decimal.self, forKey: .hourlyRate)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        isAutoGeofenced = try container.decodeIfPresent(Bool.self, forKey: .isAutoGeofenced) ?? false
+        isPaused = try container.decodeIfPresent(Bool.self, forKey: .isPaused) ?? false
+        currentPauseStart = try container.decodeIfPresent(Date.self, forKey: .currentPauseStart)
     }
 
     var durationSeconds: TimeInterval {
-        let end = endTime ?? Date()
-        let raw = max(0, end.timeIntervalSince(startTime) - TimeInterval(breakMinutes * 60))
-        return raw
+        if let end = endTime {
+            return max(0, end.timeIntervalSince(startTime) - TimeInterval(breakMinutes * 60))
+        }
+        if isPaused, let pauseStart = currentPauseStart {
+            return max(0, pauseStart.timeIntervalSince(startTime) - TimeInterval(breakMinutes * 60))
+        }
+        return max(0, Date().timeIntervalSince(startTime) - TimeInterval(breakMinutes * 60))
     }
 
     var netWorkingHours: Double {
@@ -55,6 +83,18 @@ struct WorkShift: Identifiable, Codable, Sendable, Equatable {
     }
 
     var formattedDuration: String {
+        let totalSecs = Int(durationSeconds)
+        let hours = totalSecs / 3600
+        let minutes = (totalSecs % 3600) / 60
+        let seconds = totalSecs % 60
+        if endTime != nil {
+            return String(format: "%dh %02dm", hours, minutes)
+        } else {
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+    }
+
+    var formattedDurationHoursMinutes: String {
         let totalSecs = Int(durationSeconds)
         let hours = totalSecs / 3600
         let minutes = (totalSecs % 3600) / 60
@@ -153,6 +193,32 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
         self.locationAuthorizationStatus = locationManager.authorizationStatus
         loadPersistedData()
         setupNotificationCategories()
+        updateAllGeofences() // Sofort alle gespeicherten Geofences überwachen!
+
+        // ── Notification-Action-Handler verdrahten ────────────────────
+        NotificationService.shared.onWorkTimeAction = { [weak self] actionId, userInfo in
+            guard let self else { return }
+            switch actionId {
+            case "START_SHIFT":
+                let name = userInfo["workplaceName"] as? String ?? self.savedWorkplaces.first?.name ?? "Arbeitsplatz"
+                self.startShift(workplaceName: name, isAuto: true)
+            case "END_SHIFT":
+                self.endShift()
+            case "SNOOZE_15":
+                // 15-Minuten-Snooze: echte verzögerte Benachrichtigung
+                let snoozeContent = UNMutableNotificationContent()
+                snoozeContent.title = "Erinnerung: Schicht starten ⏰"
+                snoozeContent.body = "Du wolltest in 15 Minuten erinnert werden – Zeit zum Einstempeln!"
+                snoozeContent.sound = .default
+                snoozeContent.categoryIdentifier = "WORK_ENTRY_CATEGORY"
+                snoozeContent.userInfo = userInfo
+                let snoozeTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 15 * 60, repeats: false)
+                let snoozeReq = UNNotificationRequest(identifier: "snooze_\(UUID().uuidString)", content: snoozeContent, trigger: snoozeTrigger)
+                UNUserNotificationCenter.current().add(snoozeReq)
+            default:
+                break
+            }
+        }
     }
 
     // ── Persistenz ───────────────────────────────────────────────────────
@@ -161,6 +227,8 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
         if let data = UserDefaults.standard.data(forKey: activeShiftKey),
            let shift = try? JSONDecoder().decode(WorkShift.self, from: data) {
             self.activeShift = shift
+            self.isPaused = shift.isPaused
+            self.currentPauseStart = shift.currentPauseStart
         }
 
         if let data = UserDefaults.standard.data(forKey: workplacesKey),
@@ -207,15 +275,17 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
 
     // ── Schicht-Steuerung ────────────────────────────────────────────────
 
-    func startShift(workplaceName: String = "Arbeitsplatz", hourlyRate: Decimal? = nil, isAuto: Bool = false) {
+    func startShift(workplaceName: String = "Arbeitsplatz", startTime: Date = Date(), hourlyRate: Decimal? = nil, isAuto: Bool = false) {
         guard activeShift == nil else { return }
 
         let rate = hourlyRate ?? Decimal(string: defaultHourlyRateString.replacingOccurrences(of: ",", with: "."))
         let newShift = WorkShift(
-            startTime: Date(),
+            startTime: startTime,
             workplaceName: workplaceName,
             hourlyRate: rate,
-            isAutoGeofenced: isAuto
+            isAutoGeofenced: isAuto,
+            isPaused: false,
+            currentPauseStart: nil
         )
 
         withAnimation(.spring(response: 0.35)) {
@@ -230,33 +300,51 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     func pauseShift() {
-        guard activeShift != nil, !isPaused else { return }
+        guard var shift = activeShift, !shift.isPaused else { return }
+        let now = Date()
+        shift.isPaused = true
+        shift.currentPauseStart = now
         withAnimation {
-            isPaused = true
-            currentPauseStart = Date()
+            self.activeShift = shift
+            self.isPaused = true
+            self.currentPauseStart = now
         }
+        saveActiveShift()
+        AppLogger.shared.info("Zeiterfassung", "Schicht pausiert.")
     }
 
     func resumeShift() {
-        guard activeShift != nil, isPaused, let pauseStart = currentPauseStart else { return }
-        let elapsedPauseMinutes = Int(Date().timeIntervalSince(pauseStart) / 60)
+        guard var shift = activeShift, shift.isPaused, let pauseStart = shift.currentPauseStart else { return }
+        let elapsedSeconds = Date().timeIntervalSince(pauseStart)
+        if elapsedSeconds >= 10 {
+            let elapsedMinutes = max(1, Int(round(elapsedSeconds / 60.0)))
+            shift.breakMinutes += elapsedMinutes
+        }
+        shift.isPaused = false
+        shift.currentPauseStart = nil
         withAnimation {
-            activeShift?.breakMinutes += max(1, elapsedPauseMinutes)
-            isPaused = false
-            currentPauseStart = nil
+            self.activeShift = shift
+            self.isPaused = false
+            self.currentPauseStart = nil
         }
         saveActiveShift()
+        AppLogger.shared.info("Zeiterfassung", "Schicht fortgesetzt. Gesamtpause: \(shift.breakMinutes) Min.")
     }
 
     func endShift(notes: String? = nil) {
         guard var shift = activeShift else { return }
 
-        if isPaused, let pauseStart = currentPauseStart {
-            let elapsedPauseMinutes = Int(Date().timeIntervalSince(pauseStart) / 60)
-            shift.breakMinutes += max(1, elapsedPauseMinutes)
+        if shift.isPaused, let pauseStart = shift.currentPauseStart {
+            let elapsedSeconds = Date().timeIntervalSince(pauseStart)
+            if elapsedSeconds >= 10 {
+                let elapsedMinutes = max(1, Int(round(elapsedSeconds / 60.0)))
+                shift.breakMinutes += elapsedMinutes
+            }
         }
 
         shift.endTime = Date()
+        shift.isPaused = false
+        shift.currentPauseStart = nil
         if let n = notes, !n.isEmpty {
             shift.notes = n
         }
@@ -272,7 +360,46 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
         saveHistory()
         cancelBreakReminderNotification()
 
-        AppLogger.shared.info("Zeiterfassung", "Schicht beendet: Dauer \(shift.formattedDuration).")
+        AppLogger.shared.info("Zeiterfassung", "Schicht beendet: Dauer \(shift.formattedDurationHoursMinutes).")
+    }
+
+    func updateActiveShiftStartTime(_ newDate: Date) {
+        guard var shift = activeShift else { return }
+        guard newDate <= Date() else { return }
+        shift.startTime = newDate
+        withAnimation {
+            self.activeShift = shift
+        }
+        saveActiveShift()
+        AppLogger.shared.info("Zeiterfassung", "Startzeit der aktiven Schicht korrigiert auf \(newDate.formatted(date: .omitted, time: .shortened)).")
+    }
+
+    func addManualShift(
+        workplaceName: String,
+        startTime: Date,
+        endTime: Date,
+        breakMinutes: Int,
+        hourlyRate: Decimal? = nil,
+        notes: String? = nil
+    ) {
+        guard endTime > startTime else { return }
+        let rate = hourlyRate ?? Decimal(string: defaultHourlyRateString.replacingOccurrences(of: ",", with: "."))
+        let shift = WorkShift(
+            startTime: startTime,
+            endTime: endTime,
+            breakMinutes: max(0, breakMinutes),
+            workplaceName: workplaceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Arbeitsplatz" : workplaceName,
+            hourlyRate: rate,
+            notes: notes,
+            isAutoGeofenced: false,
+            isPaused: false,
+            currentPauseStart: nil
+        )
+        withAnimation(.spring(response: 0.35)) {
+            shiftHistory.insert(shift, at: 0)
+        }
+        saveHistory()
+        AppLogger.shared.info("Zeiterfassung", "Schicht manuell nachgetragen: \(workplaceName), \(shift.formattedDurationHoursMinutes).")
     }
 
     func deleteShift(_ id: UUID) {
@@ -285,13 +412,27 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
     // ── Geofencing & Standorte ───────────────────────────────────────────
 
     func requestLocationPermissions() {
-        locationManager.requestAlwaysAuthorization()
+        let status = locationManager.authorizationStatus
+        if status == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        } else if status == .authorizedWhenInUse {
+            locationManager.requestAlwaysAuthorization()
+        } else if status == .denied || status == .restricted {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        } else {
+            locationManager.requestAlwaysAuthorization()
+        }
     }
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        self.locationAuthorizationStatus = manager.authorizationStatus
-        if manager.authorizationStatus == .authorizedAlways || manager.authorizationStatus == .authorizedWhenInUse {
-            updateAllGeofences()
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            self.locationAuthorizationStatus = status
+            if status == .authorizedAlways || status == .authorizedWhenInUse {
+                self.updateAllGeofences()
+            }
         }
     }
 
@@ -578,7 +719,10 @@ final class WorkTimeService: NSObject, ObservableObject, CLLocationManagerDelega
             context.cgContext.strokePath()
         }
 
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("Stundenzettel_\(month.formatted(.dateTime.month().year())).pdf")
+        let filenameDateFormatter = DateFormatter()
+        filenameDateFormatter.dateFormat = "yyyy-MM"
+        let safeDateString = filenameDateFormatter.string(from: month)
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("Stundenzettel_\(safeDateString).pdf")
         try? pdfData.write(to: tempURL)
         return tempURL
     }
@@ -730,8 +874,14 @@ struct WorkTimeDashboardView: View {
 
     @State private var showAddPlaceSheet: Bool = false
     @State private var showScheduleScanner: Bool = false
+    @State private var showManualShiftSheet: Bool = false
+    @State private var showAdjustStartTimeSheet: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var generatedPDFURL: URL? = nil
+    @State private var adjustedStartTime: Date = Date()
+
+    @State private var now = Date()
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     init(service: WorkTimeService) {
         self.service = service
@@ -778,11 +928,20 @@ struct WorkTimeDashboardView: View {
                     }
                 }
             }
+            .onReceive(timer) { input in
+                self.now = input
+            }
             .sheet(isPresented: $showAddPlaceSheet) {
                 AddWorkplaceSheet(service: service)
             }
             .sheet(isPresented: $showScheduleScanner) {
                 WorkScheduleScannerSheet(service: service)
+            }
+            .sheet(isPresented: $showManualShiftSheet) {
+                ManualShiftSheet(service: service)
+            }
+            .sheet(isPresented: $showAdjustStartTimeSheet) {
+                AdjustStartTimeSheet(service: service, initialDate: adjustedStartTime)
             }
             .sheet(isPresented: $showShareSheet) {
                 if let url = generatedPDFURL {
@@ -816,13 +975,28 @@ struct WorkTimeDashboardView: View {
                         .font(.title2)
                         .foregroundStyle(service.activeShift == nil ? Color.secondary : (service.isPaused ? Color.orange : Theme.primaryAccent))
 
-                    Text(service.activeShift?.formattedDuration ?? "0h 00m")
-                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    Text(service.activeShift?.formattedDuration ?? "00:00:00")
+                        .font(.system(size: 26, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
 
                     Text(service.activeShift == nil ? "Bereit zum Start" : (service.isPaused ? "Pausiert" : service.activeShift?.workplaceName ?? ""))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+
+                    if let shift = service.activeShift {
+                        Button {
+                            adjustedStartTime = shift.startTime
+                            showAdjustStartTimeSheet = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "pencil")
+                                Text("Beginn: \(shift.startTime.formatted(date: .omitted, time: .shortened)) Uhr")
+                            }
+                            .font(.caption2.bold())
+                            .foregroundStyle(Theme.primaryAccent)
+                            .padding(.top, 2)
+                        }
+                    }
                 }
             }
             .padding(.top, 10)
@@ -882,10 +1056,10 @@ struct WorkTimeDashboardView: View {
         .liquidGlassCard(cornerRadius: 22)
     }
 
-    // ── Schnellauswahl & Aktionen ────────────────────────────────────────
+    // ── Schnellauswahl & Aktionen (2x2 Grid) ─────────────────────────────
 
     private var quickActionCards: some View {
-        HStack(spacing: 10) {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
             Button {
                 showScheduleScanner = true
             } label: {
@@ -894,6 +1068,25 @@ struct WorkTimeDashboardView: View {
                         .font(.title3)
                         .foregroundStyle(Theme.primaryAccent)
                     Text("Dienstplan scannen")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.glassEdgeGradient, lineWidth: 0.8)
+                }
+            }
+
+            Button {
+                showManualShiftSheet = true
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.title3)
+                        .foregroundStyle(Color.orange)
+                    Text("Schicht nachtragen")
                         .font(.caption2.bold())
                         .foregroundStyle(.primary)
                 }
@@ -1061,16 +1254,31 @@ struct WorkTimeDashboardView: View {
 
     private var recentShiftsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Verlauf & Arbeitszeiten", systemImage: "clock.arrow.circlepath")
-                .font(.subheadline.bold())
-                .foregroundStyle(.secondary)
+            HStack {
+                Label("Verlauf & Arbeitszeiten", systemImage: "clock.arrow.circlepath")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    showManualShiftSheet = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Nachtragen")
+                    }
+                    .font(.caption2.bold())
+                    .foregroundStyle(Theme.primaryAccent)
+                }
+            }
 
             if service.shiftHistory.isEmpty {
                 Text("Noch keine Schichten erfasst.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(service.shiftHistory.prefix(10)) { shift in
+                ForEach(service.shiftHistory.prefix(15)) { shift in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(shift.workplaceName)
@@ -1083,7 +1291,7 @@ struct WorkTimeDashboardView: View {
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(shift.formattedDuration)
+                            Text(shift.formattedDurationHoursMinutes)
                                 .font(.subheadline.bold())
                                 .foregroundStyle(Theme.primaryAccent)
                             if shift.breakMinutes > 0 {
@@ -1120,8 +1328,187 @@ struct WorkTimeDashboardView: View {
 }
 
 // =============================================================================
-// MARK: - 5. Hilfs-Sheets (Ort markieren & Dienstplan-Scan)
+// MARK: - 5. Hilfs-Sheets (Ort markieren, Dienstplan-Scan, Startzeit & Manuell)
 // =============================================================================
+
+struct AdjustStartTimeSheet: View {
+    @ObservedObject var service: WorkTimeService
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedDate: Date
+
+    init(service: WorkTimeService, initialDate: Date) {
+        self.service = service
+        self._selectedDate = State(initialValue: initialDate)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.appBackground.ignoresSafeArea()
+                VStack(spacing: 20) {
+                    Text("Startzeit der laufenden Schicht korrigieren, falls du das Einstempeln vergessen hast.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    DatePicker("Startzeit", selection: $selectedDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 16))
+
+                    Spacer()
+
+                    Button {
+                        service.updateActiveShiftStartTime(selectedDate)
+                        dismiss()
+                    } label: {
+                        Text("Startzeit übernehmen")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Theme.primaryAccent, in: RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+                .padding(20)
+            }
+            .navigationTitle("Startzeit korrigieren")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct ManualShiftSheet: View {
+    @ObservedObject var service: WorkTimeService
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var workplaceName: String = ""
+    @State private var shiftDate: Date = Date()
+    @State private var startTime: Date = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var endTime: Date = Calendar.current.date(bySettingHour: 16, minute: 30, second: 0, of: Date()) ?? Date()
+    @State private var breakMinutes: Int = 30
+    @State private var notes: String = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.appBackground.ignoresSafeArea()
+                VStack(spacing: 16) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Arbeitsplatz")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                TextField("z. B. Büro, Baustelle, Homeoffice", text: $workplaceName)
+                                    .textFieldStyle(.plain)
+                                    .padding(12)
+                                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Datum")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                DatePicker("Datum", selection: $shiftDate, displayedComponents: .date)
+                                    .labelsHidden()
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                            }
+
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Beginn")
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(.secondary)
+                                    DatePicker("Beginn", selection: $startTime, displayedComponents: .hourAndMinute)
+                                        .labelsHidden()
+                                        .padding(8)
+                                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                                }
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Ende")
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(.secondary)
+                                    DatePicker("Ende", selection: $endTime, displayedComponents: .hourAndMinute)
+                                        .labelsHidden()
+                                        .padding(8)
+                                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Pause: \(breakMinutes) Minuten")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                Stepper("Pause: \(breakMinutes) Min", value: $breakMinutes, in: 0...240, step: 5)
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Notizen (optional)")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                TextField("z. B. Überstunden, Projekt...", text: $notes)
+                                    .textFieldStyle(.plain)
+                                    .padding(12)
+                                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+                        .padding(20)
+                    }
+
+                    Button {
+                        let cal = Calendar.current
+                        let sComp = cal.dateComponents([.hour, .minute], from: startTime)
+                        let eComp = cal.dateComponents([.hour, .minute], from: endTime)
+                        let finalStart = cal.date(bySettingHour: sComp.hour ?? 8, minute: sComp.minute ?? 0, second: 0, of: shiftDate) ?? startTime
+                        var finalEnd = cal.date(bySettingHour: eComp.hour ?? 16, minute: eComp.minute ?? 30, second: 0, of: shiftDate) ?? endTime
+                        if finalEnd <= finalStart {
+                            finalEnd = cal.date(byAdding: .day, value: 1, to: finalEnd) ?? finalEnd
+                        }
+
+                        service.addManualShift(
+                            workplaceName: workplaceName.isEmpty ? (service.savedWorkplaces.first?.name ?? "Arbeitsplatz") : workplaceName,
+                            startTime: finalStart,
+                            endTime: finalEnd,
+                            breakMinutes: breakMinutes,
+                            notes: notes.isEmpty ? nil : notes
+                        )
+                        dismiss()
+                    } label: {
+                        Text("Schicht im Verlauf speichern")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Theme.primaryAccent, in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 10)
+                }
+            }
+            .navigationTitle("Schicht nachtragen")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { dismiss() }
+                }
+            }
+            .onAppear {
+                if let first = service.savedWorkplaces.first {
+                    workplaceName = first.name
+                }
+            }
+        }
+    }
+}
 
 struct AddWorkplaceSheet: View {
     @ObservedObject var service: WorkTimeService
@@ -1222,6 +1609,8 @@ struct WorkScheduleScannerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var manualText: String = ""
+    @State private var showCameraScanner: Bool = false
+    @State private var isProcessingOCR: Bool = false
 
     init(service: WorkTimeService) {
         self.service = service
@@ -1236,29 +1625,49 @@ struct WorkScheduleScannerSheet: View {
                     Text("Dienstplan & Schichten einlesen")
                         .font(.headline)
 
-                    Text("Kopiere den Text deines Dienstplans hier hinein oder nutze OCR. Die App erkennt Schichtzeiten (z. B. '08:00 - 16:30') automatisch.")
+                    Text("Scanne deinen Dienstplan mit der Kamera oder füge den Text ein. Die App erkennt Schichtzeiten (z. B. '08:00 - 16:30') automatisch.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            showCameraScanner = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                if isProcessingOCR {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Image(systemName: "camera.fill")
+                                }
+                                Text("Mit Kamera scannen")
+                            }
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(Theme.primaryGradient, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .disabled(isProcessingOCR)
+
+                        Button {
+                            manualText = """
+                            Mo 08.09.: 07:00 - 15:30 Frühschicht Station 2
+                            Di 09.09.: 07:00 - 15:30 Frühschicht Station 2
+                            Mi 10.09.: 14:00 - 22:00 Spätschicht
+                            Do 11.09.: 14:00 - 22:00 Spätschicht
+                            Fr 12.09.: 07:00 - 15:30 Frühschicht
+                            """
+                        } label: {
+                            Text("Beispiel einfügen")
+                                .font(.caption.bold())
+                                .foregroundStyle(Theme.primaryAccent)
+                        }
+                    }
 
                     TextEditor(text: $manualText)
                         .scrollContentBackground(.hidden)
                         .padding(12)
                         .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
                         .frame(minHeight: 180)
-
-                    Button {
-                        manualText = """
-                        Mo 08.09.: 07:00 - 15:30 Frühschicht Station 2
-                        Di 09.09.: 07:00 - 15:30 Frühschicht Station 2
-                        Mi 10.09.: 14:00 - 22:00 Spätschicht
-                        Do 11.09.: 14:00 - 22:00 Spätschicht
-                        Fr 12.09.: 07:00 - 15:30 Frühschicht
-                        """
-                    } label: {
-                        Text("Beispiel-Dienstplan einfügen")
-                            .font(.caption.bold())
-                            .foregroundStyle(Theme.primaryAccent)
-                    }
 
                     Spacer()
 
@@ -1284,12 +1693,32 @@ struct WorkScheduleScannerSheet: View {
                     Button("Abbrechen") { dismiss() }
                 }
             }
+            .sheet(isPresented: $showCameraScanner) {
+                DocumentScannerView { pages in
+                    guard let firstImage = pages.first?.image else { return }
+                    isProcessingOCR = true
+                    Task {
+                        do {
+                            let result = try await VisionOCRService().recognise(image: firstImage)
+                            await MainActor.run {
+                                self.manualText = result.rawText
+                                self.isProcessingOCR = false
+                            }
+                        } catch {
+                            await MainActor.run {
+                                self.isProcessingOCR = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 // ── Einmaliger Standort-Ermittler ────────────────────────────────────────────
 
+@MainActor
 final class QuickLocationFetcher: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var coordinate: CLLocationCoordinate2D? = nil
     private let manager = CLLocationManager()
@@ -1305,9 +1734,12 @@ final class QuickLocationFetcher: NSObject, ObservableObject, CLLocationManagerD
         manager.startUpdatingLocation()
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
-        self.coordinate = loc.coordinate
-        manager.stopUpdatingLocation()
+        let coord = loc.coordinate
+        Task { @MainActor in
+            self.coordinate = coord
+            manager.stopUpdatingLocation()
+        }
     }
 }

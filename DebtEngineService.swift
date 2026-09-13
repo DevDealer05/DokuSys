@@ -374,9 +374,12 @@ final class DebtEngineService: ObservableObject {
         if let iban = scan.creditorIBAN                { debt.creditorIBAN = iban }
         debt.updatedAt = Date()
         debts[index] = debt
+        saveLocally()
 
-        Task { await persistDebt(debt) }
-        Task { await persistTimeline(entry) }
+        Task {
+            await persistDebt(debt)
+            await persistTimeline(entry)
+        }
 
         return .updated(debt: debt, delta: delta, timelineEntry: entry)
     }
@@ -406,9 +409,12 @@ final class DebtEngineService: ObservableObject {
             description:       "Erster Scan / manueller Eintrag (AZ: \(fileNumber))"
         )
         appendTimelineEntry(entry, for: debt.id)
+        saveLocally()
 
-        Task { await persistDebt(debt) }
-        Task { await persistTimeline(entry) }
+        Task {
+            await persistDebt(debt)
+            await persistTimeline(entry)
+        }
 
         return .created(debt: debt)
     }
@@ -513,9 +519,12 @@ final class DebtEngineService: ObservableObject {
             description:       description
         )
         appendTimelineEntry(entry, for: debtId)
+        saveLocally()
 
-        Task { await persistDebt(debt) }
-        Task { await persistTimeline(entry) }
+        Task {
+            await persistDebt(debt)
+            await persistTimeline(entry)
+        }
     }
 
     /// Fügt eine neue Forderung manuell hinzu
@@ -532,15 +541,24 @@ final class DebtEngineService: ObservableObject {
             description:       initialNote ?? "Forderung erfasst (AZ: \(debt.fileNumber))"
         )
         appendTimelineEntry(entry, for: debt.id)
+        saveLocally()
 
-        Task { await persistDebt(debt) }
-        Task { await persistTimeline(entry) }
+        Task {
+            await persistDebt(debt)
+            await persistTimeline(entry)
+        }
     }
 
     func deleteDebt(_ debtId: UUID) {
         debts.removeAll { $0.id == debtId }
         timelines.removeValue(forKey: debtId)
+        saveLocally()
         Task { await deleteDebtFromDB(debtId) }
+    }
+
+    private func saveLocally() {
+        StorageService.shared.saveDebts(debts, userId: currentUserId)
+        StorageService.shared.saveTimelines(timelines, userId: currentUserId)
     }
 
     // =========================================================================

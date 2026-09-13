@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'DigitalesBuero' in project 'DigitalesBuero'
-➜ Explicit dependency on target 'DigitalesBuero_AppModule' in project 'DigitalesBuero'
-Target 'DigitalesBuero_AppModule' in project 'DigitalesBuero' (no dependencies)
