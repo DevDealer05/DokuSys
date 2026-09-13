@@ -92,16 +92,13 @@ final class GeminiService: ObservableObject {
                 }
 
                 // Model fallback chain:
-                // Google explicitly requires 'gemini-3.6-flash' as of recent updates
                 var candidateModels = [
-                    "gemini-3.6-flash",
-                    "gemini-3.6-pro",
                     "gemini-2.5-flash",
-                    "gemini-2.5-pro",
-                    "gemini-flash-latest",
-                    "gemini-pro-latest",
                     "gemini-2.0-flash",
-                    "gemini-1.5-flash"
+                    "gemini-1.5-flash",
+                    "gemini-2.5-pro",
+                    "gemini-2.0-flash-lite",
+                    "gemini-1.5-pro"
                 ]
 
                 // If a previously working model was saved, test it first
@@ -360,7 +357,7 @@ final class GeminiService: ObservableObject {
         CODE_CHANGES_JSON:[{"file":"Dateiname.swift","content":"vollständiger fehlerfreier Dateiinhalt"}]
         """
 
-        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=\(apiKey)"
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\(apiKey)"
         guard let url = URL(string: urlString) else {
             throw GeminiError.networkError("Ungültige Gemini-URL")
         }

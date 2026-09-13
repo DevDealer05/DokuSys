@@ -133,6 +133,12 @@ struct AIChatView: View {
                         withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                     }
                 }
+                .onChange(of: messages.last?.content) { _, _ in
+                    // Scroll auch während Gemini streamt (Chunk für Chunk)
+                    if let last = messages.last {
+                        proxy.scrollTo(last.id, anchor: .bottom)
+                    }
+                }
             }
 
             Divider()
@@ -260,7 +266,7 @@ struct AIChatView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
-            .padding(.bottom, isEmbeddedInTabBar && !isInputFocused ? 84 : 10)
+            .padding(.bottom, 10)
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isInputFocused)
         }
         .navigationTitle("KI-Assistent")
@@ -456,6 +462,7 @@ struct AIChatView: View {
 
     // MARK: - Send message
     private func sendMessage() async {
+        isInputFocused = false   // ← Tastatur sofort schließen
         let text = inputText.trimmingCharacters(in: .whitespaces)
         let imgData = attachedImageData
         let fname = attachedFileName
@@ -484,16 +491,16 @@ struct AIChatView: View {
         }
     }
 
-    // MARK: - Assistant streaming
+    // MARK: - Assistant streaming (crash-safe: ID statt Index)
     private func sendAssistantMessage(prompt: String, imageData: Data? = nil) async {
         var assistantMsg = ChatMessage(role: .assistant, isCodeChange: false)
         assistantMsg.isStreaming = true
+        let msgId = assistantMsg.id          // ← ID merken, nicht Index!
         messages.append(assistantMsg)
-        let idx = messages.count - 1
 
         gemini.isStreaming = true
         let context = """
-        Du bist ein freundlicher, kompetenter Assistent für die App "Digitales Büro" – \
+        Du bist ein freundlicher, kompetenter Assistent für die App \"Digitales Büro\" – \
         eine iOS-App für Schulden- und Haushaltsmanagement (SwiftUI, iOS 17+). \
         Antworte immer auf Deutsch. Sei präzise und hilfreich. \
         Du kennst alle Funktionen der App: Schulden-Tracker, Dokumentenscanner, \
@@ -510,55 +517,72 @@ struct AIChatView: View {
         )
         do {
             for try await chunk in stream {
-                messages[idx].content += chunk
+                // Nach jedem Chunk sicher per ID suchen (crash-sicher)
+                if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                    messages[i].content += chunk
+                }
             }
         } catch {
-            messages[idx].content = "⚠️ \(error.localizedDescription)"
+            if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                messages[i].content = "⚠️ \(error.localizedDescription)"
+            }
         }
 
-        messages[idx].isStreaming = false
+        if let i = messages.firstIndex(where: { $0.id == msgId }) {
+            messages[i].isStreaming = false
+        }
         gemini.isStreaming = false
         saveMessages()
     }
 
-    // MARK: - Code change via agent
+    // MARK: - Code change via agent (crash-safe: ID statt Index)
     private func sendCodeChangeMessage(prompt: String) async {
         var agentMsg = ChatMessage(role: .assistant, content: "⏳ KI-Agent analysiert Repository...", isCodeChange: true)
         agentMsg.isStreaming = true
+        let msgId = agentMsg.id               // ← ID merken, nicht Index!
         messages.append(agentMsg)
-        let idx = messages.count - 1
 
         gemini.isStreaming = true
         do {
             let result = try await gemini.sendCodeChangeRequest(prompt: prompt, agentURL: agentURL)
             var response = result.text
-            if let sha = result.commitSHA {
-                response += "\n\n✅ **Code committed!**\nSHA: `\(sha.prefix(8))`\n🔄 GitHub Actions baut neues IPA..."
-                messages[idx].commitSHA = sha
+            if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                if let sha = result.commitSHA {
+                    response += "\n\n✅ **Code committed!**\nSHA: `\(sha.prefix(8))`\n🔄 GitHub Actions baut neues IPA..."
+                    messages[i].commitSHA = sha
+                }
+                if let url = result.actionsUrl {
+                    response += "\n[→ Actions öffnen](\(url))"
+                    messages[i].actionsUrl = url
+                }
+                messages[i].content = response
             }
-            if let url = result.actionsUrl {
-                response += "\n[→ Actions öffnen](\(url))"
-                messages[idx].actionsUrl = url
-            }
-            messages[idx].content = response
         } catch {
             AppLogger.shared.warn("KI-Agent", "Code-Anfrage fehlgeschlagen: \(error.localizedDescription)")
-            messages[idx].content = "⚠️ *Code-Anfrage fehlgeschlagen: \(error.localizedDescription). Wechsle auf direkten Assistenten:*\n\n"
+            if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                messages[i].content = "⚠️ *Code-Anfrage fehlgeschlagen: \(error.localizedDescription). Wechsle auf direkten Assistenten:*\n\n"
+            }
             let codeSystemContext = """
-            Du bist ein erfahrener iOS Swift-Entwickler für die App "Digitales Büro". \
+            Du bist ein erfahrener iOS Swift-Entwickler für die App \"Digitales Büro\". \
             Beantworte Programmierfragen präzise auf Deutsch und liefere fertige, fehlerfreie Swift-Codeblöcke.
             """
             let stream = gemini.streamResponse(prompt: prompt, systemContext: codeSystemContext, history: Array(messages.dropLast()))
             do {
                 for try await chunk in stream {
-                    messages[idx].content += chunk
+                    if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                        messages[i].content += chunk
+                    }
                 }
             } catch let directErr {
-                messages[idx].content += "\n\n⚠️ Auch direkter Gemini-Aufruf fehlgeschlagen: \(directErr.localizedDescription)"
+                if let i = messages.firstIndex(where: { $0.id == msgId }) {
+                    messages[i].content += "\n\n⚠️ Auch direkter Gemini-Aufruf fehlgeschlagen: \(directErr.localizedDescription)"
+                }
             }
         }
 
-        messages[idx].isStreaming = false
+        if let i = messages.firstIndex(where: { $0.id == msgId }) {
+            messages[i].isStreaming = false
+        }
         gemini.isStreaming = false
         saveMessages()
     }
